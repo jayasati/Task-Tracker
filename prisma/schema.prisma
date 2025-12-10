@@ -1,0 +1,24 @@
+datasource db {
+  provider = "postgresql"
+
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Task {
+  id       String   @id @default(cuid())
+  title    String
+  createdAt DateTime @default(now())
+  logs     TimeLog[]
+}
+
+model TimeLog {
+  id        String   @id @default(cuid())
+  seconds   Int      @default(0)
+  date      DateTime
+  task      Task     @relation(fields: [taskId], references: [id])
+  taskId    String
+  @@unique([taskId, date])
+}
