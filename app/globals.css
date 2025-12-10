@@ -24,3 +24,33 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+body { background: #f4f6f8; font-family: Arial; padding: 20px; }
+
+.container { max-width: 600px; margin: auto; }
+
+.box {
+  background: #fff;
+  padding: 15px;
+  margin-top: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.input {
+  padding: 8px;
+  margin-right: 10px;
+}
+
+.btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-blue { background: #0a84ff; }
+.btn-red { background: #d9534f; }
+.time { font-size: 20px; font-weight: bold; }
