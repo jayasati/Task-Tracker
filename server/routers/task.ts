@@ -1,9 +1,8 @@
 import { router, publicProcedure } from "../trpc";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "../db";
 import { z } from "zod";
 
 export const taskRouter = router({
-
   getTasks: publicProcedure.query(async () => {
     return prisma.task.findMany({
       include: { logs: true },
@@ -13,49 +12,19 @@ export const taskRouter = router({
   addTask: publicProcedure
     .input(z.string())
     .mutation(async ({ input }) => {
-      return prisma.task.create({
-        data: { title: input },
-      });
+      return prisma.task.create({ data: { title: input } });
     }),
 
-  logTime: publicProcedure
-    .input(z.object({
-      taskId: z.string(),
-      seconds: z.number(),
-    }))
+  updateSeconds: publicProcedure
+    .input(z.object({ taskId: z.string(), seconds: z.number() }))
     .mutation(async ({ input }) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       return prisma.timeLog.upsert({
-        where: { taskId_date: { taskId: input.taskId, date: today }},
-        update: { seconds: { increment: input.seconds }},
-        create: { taskId: input.taskId, seconds: input.seconds, date: today }
+        where: { taskId_date: { taskId: input.taskId, date: today } },
+        update: { seconds: { increment: input.seconds } },
+        create: { taskId: input.taskId, date: today, seconds: input.seconds },
       });
     }),
-
-    //This will allow adding seconds every time the timer ticks.
-    updateSeconds: publicProcedure
-  .input(
-    z.object({
-      taskId: z.string(),
-      seconds: z.number()
-    })
-  )
-  .mutation(async ({ input }) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return prisma.timeLog.upsert({
-      where: {
-        taskId_date: {
-          taskId: input.taskId,
-          date: today
-        }
-      },
-      update: { seconds: { increment: input.seconds } },
-      create: { taskId: input.taskId, seconds: input.seconds, date: today }
-    });
-  })
-
 });
