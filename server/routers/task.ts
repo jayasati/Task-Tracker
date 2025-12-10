@@ -33,4 +33,29 @@ export const taskRouter = router({
         create: { taskId: input.taskId, seconds: input.seconds, date: today }
       });
     }),
+
+    //This will allow adding seconds every time the timer ticks.
+    updateSeconds: publicProcedure
+  .input(
+    z.object({
+      taskId: z.string(),
+      seconds: z.number()
+    })
+  )
+  .mutation(async ({ input }) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return prisma.timeLog.upsert({
+      where: {
+        taskId_date: {
+          taskId: input.taskId,
+          date: today
+        }
+      },
+      update: { seconds: { increment: input.seconds } },
+      create: { taskId: input.taskId, seconds: input.seconds, date: today }
+    });
+  })
+
 });
