@@ -58,20 +58,28 @@ export default function SubtaskModal({
     useEffect(() => {
         if (isOpen) {
             setCompleted(statusEntry?.completedSubtasks || []);
-            // If we have history, use it. If not, use global + rollover
 
-            let tasksToShow = [...currentDailyTasks];
+            // Determine the list of subtasks to show
+            let tasksToShow: string[] = [];
 
-            // If this is a fresh day (no history preserved yet), prepend rollover tasks
-            // Ensure unique strings if simple strings
-            if (!isHistory && prevDayUnfinished.length > 0) {
-                tasksToShow = [...prevDayUnfinished, ...tasksToShow];
-                // Dedupe?
+            if (isHistory) {
+                // If we have a saved history for this day, use it exactly as is.
+                tasksToShow = currentDailyTasks;
+            } else {
+                // If it's a fresh day (no history), we construct the list:
+                // Roll over unfinished tasks from yesterday + Global Subtasks for today
+                const baseTasks = currentDailyTasks; // This is globalSubtasks in this branch
+
+                // Combine: Rollover FIRST, then Standard Routine
+                tasksToShow = [...prevDayUnfinished, ...baseTasks];
+
+                // Deduplicate: If "Task A" is in both, keep one.
                 tasksToShow = Array.from(new Set(tasksToShow));
             }
+
             setActiveTasks(tasksToShow);
         }
-    }, [isOpen, statusEntry, globalSubtasks, prevDayUnfinished, isHistory]);
+    }, [isOpen, statusEntry, isHistory, currentDailyTasks, prevDayUnfinished]);
 
     if (!isOpen) return null;
 
@@ -97,9 +105,16 @@ export default function SubtaskModal({
             else newStatus = "NONE";
         }
 
+        // Format date as YYYY-MM-DD local to match server expectation/TaskCard logic
+        // The 'date' prop is already 00:00 Local Time from HabitGrid.
+        // We want "YYYY-MM-DD" representing that local day.
+        const offset = date.getTimezoneOffset();
+        const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+        const dateStr = localDate.toISOString().split("T")[0];
+
         updateStatus.mutate({
             taskId,
-            date: date.toISOString(),
+            date: dateStr,
             status: newStatus,
             completedSubtasks: newCompleted,
             dailySubtasks: activeTasks, // Freeze the list!

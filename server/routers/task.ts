@@ -92,7 +92,7 @@ export const taskRouter = router({
     .input(z.object({ taskId: z.string(), seconds: z.number(), date: z.string() }))
     .mutation(async ({ input }) => {
       const today = new Date(input.date);
-      today.setHours(0, 0, 0, 0);
+      // today.setHours(0, 0, 0, 0); 
 
       return prisma.timeLog.upsert({
         where: { taskId_date: { taskId: input.taskId, date: today } },
@@ -111,7 +111,7 @@ export const taskRouter = router({
     }))
     .mutation(async ({ input }) => {
       const d = new Date(input.date);
-      d.setHours(0, 0, 0, 0);
+      // d.setHours(0, 0, 0, 0); 
       return prisma.taskStatus.upsert({
         where: {
           taskId_date: {

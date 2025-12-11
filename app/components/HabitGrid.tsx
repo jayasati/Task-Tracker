@@ -61,8 +61,14 @@ export default function HabitGrid({ task, refetch, currentMonth }: HabitGridProp
     return new Date(d).toISOString().split("T")[0];
   };
 
+  // Helper to safely format YYYY-MM-DD from local components
+  const formatDateKey = (y: number, m: number, d: number) => {
+    // m is 0-indexed
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  };
+
   const getStatus = (day: number) => {
-    const dateStr = new Date(year, month, day).toISOString().split("T")[0];
+    const dateStr = formatDateKey(year, month, day);
     return (
       task.statuses.find((s) => toISODate(s.date) === dateStr)?.status ?? "NONE"
     );
@@ -93,12 +99,7 @@ export default function HabitGrid({ task, refetch, currentMonth }: HabitGridProp
     }
 
     if (task.type === "time") {
-      // Time tasks are automatic based on log, but maybe user wants to manually override?
-      // User said: "manually clicked by the user ... if time based task then based on the time spent"
-      // Implies time based is automatic. 
-      // Let's disable manual toggle or generic "toggle" for time tasks? 
-      // Actually, if I click it, maybe nothing happens or it shows info?
-      // Let's stick to automatic for now.
+      // Time tasks are automatic based on log
       return;
     }
 
@@ -106,20 +107,23 @@ export default function HabitGrid({ task, refetch, currentMonth }: HabitGridProp
     const curr = getStatus(day);
     const next = nextStatus[curr];
 
+    // Use our fixed SubtaskModal logic: send local YYYY-MM-DD
+    const dateStr = formatDateKey(year, month, day);
+
     updateStatus.mutate({
       taskId: task.id,
-      date: date.toISOString(),
+      date: dateStr,
       status: next,
     });
   };
 
   const getStatusEntry = (day: number) => {
-    const dateStr = new Date(year, month, day).toISOString().split("T")[0];
+    const dateStr = formatDateKey(year, month, day);
     return task.statuses.find((s) => toISODate(s.date) === dateStr);
   };
 
   const getTimeColor = (day: number) => {
-    const dateStr = new Date(year, month, day).toISOString().split("T")[0];
+    const dateStr = formatDateKey(year, month, day);
     // Sum logs for this day
     const dailySeconds = task.logs
       .filter(l => toISODate(l.date) === dateStr)
@@ -148,28 +152,42 @@ export default function HabitGrid({ task, refetch, currentMonth }: HabitGridProp
   };
 
   const getPrevDayUnfinished = (currentDay: number): string[] => {
-    const prevDate = new Date(year, month, currentDay - 1);
+    // 1. Target Date (Midnight Local)
+    const targetDate = new Date(year, month, currentDay);
 
-    // If previous date is generic "yesterday" logic? 
-    // We need to look up status for that date.
-    // We need to look up status for that date.
-    const dateStr = prevDate.toISOString().split("T")[0];
-    const entry = task.statuses.find((s) => toISODate(s.date) === dateStr);
+    // 2. Find most recent status BEFORE targetDate
+    // Filter statuses where date < targetDate
+    // Sort by date desc, take first.
 
-    if (entry) {
-      // If entry exists, calculate unfinished
-      const sourceList = entry.dailySubtasks.length > 0 ? entry.dailySubtasks : (task.subtasks ?? []);
-      return sourceList.filter(s => !entry.completedSubtasks.includes(s));
-    }
+    // Helper to get time from status date string
+    const getTime = (d: string | Date) => new Date(d).getTime();
+    const targetTime = targetDate.getTime();
 
-    // If no entry, check if task should have existed?
-    // Assuming fresh start if no entry, so no rollover.
-    // But user request: "subtask of day one is not completed automatically shift ... to next day"
-    // If I didn't open the app on day one, it has no entry.
-    // But the task existed. 
-    // Checking created date might be overkill, let's just return [] if no entry for now to be safe and simple.
-    // Or better: If no entry, returns ALL global subtasks ?? No that would spam.
-    return [];
+    const prevStatuses = task.statuses.filter(s => {
+      // Compare by ISO Date String to be consistently "Day" based? 
+      // Or just timestamp?
+      // Safe bet: Convert s.date to timestamp.
+      // Note: s.date from Prisma is UTC. targetDate is Local Midnight.
+      // IF we simply compare timestamps: 
+      // Dec 11 Local (00:00) = Dec 10 18:30 UTC.
+      // Status Dec 10 Local (00:00) = Dec 9 18:30 UTC.
+      // Dec 9 18:30 < Dec 10 18:30. Correct.
+      return getTime(s.date) < targetTime;
+    });
+
+    // If no previous history, usually means fresh start. 
+    // Return empty (standard) or Global (if we assume implicit start).
+    // TaskCard uses 'prevDaily ?? global' ONLY if status found.
+    if (prevStatuses.length === 0) return [];
+
+    const lastStatus = prevStatuses.sort((a, b) => getTime(b.date) - getTime(a.date))[0];
+
+    // Calculate unfinished from that status
+    const sourceList = (lastStatus.dailySubtasks && lastStatus.dailySubtasks.length > 0)
+      ? lastStatus.dailySubtasks
+      : (task.subtasks ?? []);
+
+    return sourceList.filter(s => !lastStatus.completedSubtasks.includes(s));
   };
 
   return (
