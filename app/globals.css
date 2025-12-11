@@ -30,17 +30,14 @@ body {
   box-sizing: border-box;
 }
 
-body { 
+body {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   padding: 20px;
   min-height: 100vh;
 }
 
-.container { 
-  max-width: 900px; 
-  margin: auto; 
-}
+/* .container removed to allow full width or tailwind container */
 
 h2 {
   color: white;
@@ -48,7 +45,7 @@ h2 {
   font-weight: 700;
   margin-bottom: 2rem;
   text-align: center;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .box {
@@ -56,13 +53,13 @@ h2 {
   padding: 24px;
   margin-top: 20px;
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .box:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 
 .box.task h3 {
@@ -96,19 +93,19 @@ h2 {
   font-size: 16px;
   font-weight: 600;
   transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .btn:active {
   transform: translateY(0);
 }
 
-.btn-blue { 
+.btn-blue {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
@@ -116,7 +113,7 @@ h2 {
   background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
 }
 
-.btn-red { 
+.btn-red {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
@@ -124,8 +121,8 @@ h2 {
   background: linear-gradient(135deg, #e081eb 0%, #e4465b 100%);
 }
 
-.time { 
-  font-size: 2rem; 
+.time {
+  font-size: 2rem;
   font-weight: 700;
   color: #667eea;
   margin: 16px 0;
@@ -133,12 +130,51 @@ h2 {
 }
 
 
-.grid {
+
+/* .grid class removed to avoid conflict with Tailwind */
+.grid-legacy {
   margin-top: 10px;
   display: grid;
   grid-template-columns: repeat(10, 32px);
   gap: 6px;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromTop {
+  from {
+    transform: translateY(-1rem);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation-duration: 0.3s;
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: fadeIn;
+}
+
+.slide-in-from-top-4 {
+  animation-name: slideInFromTop;
+  /* Simplified combination */
+}
+
 
 .cell {
   width: 32px;
@@ -218,7 +254,7 @@ h2 {
   flex-shrink: 0;
   font-weight: 600;
   font-size: 14px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   background: #f8fafc;
   position: relative;
   user-select: none;
@@ -288,7 +324,7 @@ h2 {
 
 .day-box:hover {
   transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.14);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
   z-index: 2;
 }
 
@@ -307,9 +343,11 @@ h2 {
   0% {
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
   }
+
   70% {
     box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
   }
@@ -329,4 +367,3 @@ h2 {
 .add-task:hover {
   border-color: #667eea;
 }
-

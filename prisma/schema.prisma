@@ -10,9 +10,22 @@ generator client {
 model Task {
   id       String   @id @default(cuid())
   title    String
+  type     String   @default("task")
   createdAt DateTime @default(now())
   logs     TimeLog[]
   statuses   TaskStatus[]
+  
+  // New fields for enhanced task tracking
+  repeatMode String   @default("none") // none, daily, weekly, monthly, custom
+  weekdays   Int[]    // 0-6 for Sun-Sat, used when repeatMode is custom or weekly
+  startDate  DateTime?
+  endDate    DateTime?
+  priority   String   @default("medium") // low, medium, high
+  category   String?
+  amount     String?  // "10 reps", "2 liters"
+  estimate   Int?     // in minutes
+  subtasks   String[]
+  notes      String?
 }
 
 model TimeLog {

@@ -4,6 +4,8 @@ import { trpc } from "@/utils/trpc";
 import TaskCard from "./TaskCard";
 import { useState } from "react";
 
+import { keepPreviousData } from "@tanstack/react-query";
+
 export default function TasksList() {
   const { data: tasks, isLoading } = trpc.task.getTasks.useQuery(undefined, {
     staleTime: 60000, // Cache for 60 seconds
@@ -11,7 +13,7 @@ export default function TasksList() {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
   const utils = trpc.useUtils();
   const [currentMonth] = useState(new Date());
@@ -23,7 +25,7 @@ export default function TasksList() {
   if (isLoading) {
     return (
       <div className="box" style={{ textAlign: 'center', padding: '40px' }}>
-        <div style={{ 
+        <div style={{
           display: 'inline-block',
           width: '40px',
           height: '40px',
