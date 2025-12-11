@@ -186,6 +186,32 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
     });
   };
 
+  // ADD SUBTASK LOGIC
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
+  const [newSubtaskName, setNewSubtaskName] = useState("");
+
+  const handleAddSubtask = () => {
+    if (!newSubtaskName.trim()) return;
+
+    const newActive = [...activeSubtasks, newSubtaskName.trim()];
+    const uniqueActive = Array.from(new Set(newActive));
+
+    updateStatus.mutate({
+      taskId: task.id,
+      date: today,
+      dailySubtasks: uniqueActive,
+      completedSubtasks: completedSubtasks,
+      status: (currentStatus?.status === "SUCCESS") ? "HALF" : (currentStatus?.status ?? "NONE")
+    }, {
+      onSuccess: () => {
+        setIsAddingSubtask(false);
+        setNewSubtaskName("");
+        refetch();
+      }
+    });
+
+  };
+
 
 
   return (
@@ -271,43 +297,117 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
       )}
 
       {/* Subtasks Section */}
-      {task.subtasks && task.subtasks.length > 0 && (
+      {/* Subtasks Section */}
+      {(
         <div style={{ marginBottom: '16px' }}>
-          <strong style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '8px' }}>Subtasks</strong>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {activeSubtasks.map((sub, idx) => {
-              const isCompleted = completedSubtasks.includes(sub);
-              return (
-                <div
-                  key={idx}
-                  onClick={() => toggleSubtask(sub)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}
-                >
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    border: isCompleted ? '1px solid #3b82f6' : '1px solid #cbd5e0',
-                    borderRadius: '4px',
-                    background: isCompleted ? '#3b82f6' : 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s'
-                  }}>
-                    {isCompleted && (
-                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 1L3.5 6.5L1 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </div>
-                  <span style={{
-                    textDecoration: isCompleted ? 'line-through' : 'none',
-                    color: isCompleted ? '#9ca3af' : 'inherit'
-                  }}>{sub}</span>
-                </div>
-              );
-            })}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <strong style={{ fontSize: '12px', color: '#6b7280', display: 'block' }}>Subtasks</strong>
           </div>
+
+          {(activeSubtasks.length > 0 || (task.subtasks?.length ?? 0) > 0) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {activeSubtasks.map((sub, idx) => {
+                const isCompleted = completedSubtasks.includes(sub);
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => toggleSubtask(sub)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}
+                  >
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: isCompleted ? '1px solid #3b82f6' : '1px solid #cbd5e0',
+                      borderRadius: '4px',
+                      background: isCompleted ? '#3b82f6' : 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s'
+                    }}>
+                      {isCompleted && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M9 1L3.5 6.5L1 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <span style={{
+                      textDecoration: isCompleted ? 'line-through' : 'none',
+                      color: isCompleted ? '#9ca3af' : 'inherit'
+                    }}>{sub}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Add Subtask UI */}
+          {!isAddingSubtask ? (
+            <button
+              onClick={() => setIsAddingSubtask(true)}
+              style={{
+                marginTop: '8px',
+                background: 'none',
+                border: 'none',
+                color: '#3b82f6',
+                fontSize: '13px',
+                cursor: 'pointer',
+                padding: '4px 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              + Add Subtask
+            </button>
+          ) : (
+            <div style={{ marginTop: '8px', display: 'flex', gap: '6px' }}>
+              <input
+                autoFocus
+                type="text"
+                value={newSubtaskName}
+                onChange={(e) => setNewSubtaskName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddSubtask();
+                  if (e.key === 'Escape') setIsAddingSubtask(false);
+                }}
+                placeholder="New subtask name..."
+                style={{
+                  flex: 1,
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid #cbd5e0',
+                  fontSize: '13px'
+                }}
+              />
+              <button
+                onClick={handleAddSubtask}
+                style={{
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Add
+              </button>
+              <button
+                onClick={() => setIsAddingSubtask(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       )}
 
