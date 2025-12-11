@@ -25,7 +25,27 @@ type TaskCardProps = {
 
 
 export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
+  const utils = trpc.useUtils();
   const updateSeconds = trpc.task.updateSeconds.useMutation();
+  const deleteTask = trpc.task.deleteTask.useMutation({
+    // Optimistic remove; rollback on error
+    onMutate: async ({ taskId }) => {
+      await utils.task.getTasks.cancel();
+      const prev = utils.task.getTasks.getData();
+      if (prev) {
+        utils.task.getTasks.setData(undefined, prev.filter((t) => t.id !== taskId));
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) utils.task.getTasks.setData(undefined, ctx.prev);
+    },
+    onSuccess: () => {
+      // Keep cache in sync; background refetch
+      utils.task.getTasks.invalidate();
+      refetch();
+    },
+  });
 
   const totalFromDB = task.logs.reduce((s, l) => s + l.seconds, 0);
   const [localSeconds, setLocalSeconds] = useState(totalFromDB);
@@ -64,10 +84,31 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
   const format = (s: number) =>
     new Date(s * 1000).toISOString().substring(11, 19);
 
+  const handleDelete = () => {
+    const confirmed = window.confirm("Delete this task? This cannot be undone.");
+    if (!confirmed) return;
+    deleteTask.mutate({ taskId: task.id });
+  };
+
   return (
     <div className="box task">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h3>{task.title}</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
+        <h3 style={{ margin: 0 }}>{task.title}</h3>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            className="btn"
+            onClick={handleDelete}
+            style={{
+              background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+              padding: '8px 12px',
+              fontSize: '14px',
+              opacity: deleteTask.isPending ? 0.6 : 1,
+              cursor: deleteTask.isPending ? 'not-allowed' : 'pointer'
+            }}
+            disabled={deleteTask.isPending}
+          >
+            {deleteTask.isPending ? 'Deleting...' : 'Delete'}
+          </button>
         {tick && (
           <div style={{ 
             width: '12px', 
@@ -78,6 +119,7 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
             boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.7)'
           }} />
         )}
+        </div>
       </div>
       
       <div style={{ 

@@ -70,7 +70,17 @@ export const taskRouter = router({
         status: input.status,
       },
     });
-  })
+  }),
+  //------------------------------------------------
+  deleteTask: publicProcedure
+    .input(z.object({ taskId: z.string() }))
+    .mutation(async ({ input }) => {
+      // Some drivers (e.g. Neon HTTP) do not support interactive tx well; do sequential deletes.
+      await prisma.timeLog.deleteMany({ where: { taskId: input.taskId } });
+      await prisma.taskStatus.deleteMany({ where: { taskId: input.taskId } });
+      const deleted = await prisma.task.delete({ where: { id: input.taskId } }).catch(() => null);
+      return { success: !!deleted };
+    })
 
   
 
