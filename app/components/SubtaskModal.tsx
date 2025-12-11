@@ -99,14 +99,14 @@ export default function SubtaskModal({
 
         updateStatus.mutate({
             taskId,
-            date: date.toISOString(),
+            date: date.toLocaleDateString("en-CA"),
             status: newStatus,
             completedSubtasks: newCompleted,
             dailySubtasks: activeTasks, // Freeze the list!
         });
     };
 
-    const isToday = new Date().toDateString() === date.toDateString();
+    const isToday = new Date().toLocaleDateString("en-CA") === date.toLocaleDateString("en-CA");
     const itemsDone = completed.filter(c => activeTasks.includes(c)).length;
 
     return (

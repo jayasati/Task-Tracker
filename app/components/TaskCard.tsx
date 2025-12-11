@@ -66,7 +66,7 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
     onSuccess: refetch, // or optimistically update if feeling brave
   });
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
 
   const totalFromDB = task.logs.reduce((s, l) => s + l.seconds, 0);
   const [localSeconds, setLocalSeconds] = useState(totalFromDB);
@@ -110,6 +110,8 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
   };
 
   const currentStatus = task.statuses.find((s) => {
+    // DB stores date as UTC midnight of the string we sent. 
+    // So .toISOString().split('T')[0] will return the original string.
     const d = new Date(s.date);
     return d.toISOString().split("T")[0] === today;
   });
