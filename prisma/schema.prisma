@@ -12,6 +12,7 @@ model Task {
   title    String
   createdAt DateTime @default(now())
   logs     TimeLog[]
+  statuses   TaskStatus[]
 }
 
 model TimeLog {
@@ -21,4 +22,21 @@ model TimeLog {
   task      Task     @relation(fields: [taskId], references: [id])
   taskId    String
   @@unique([taskId, date])
+}
+
+model TaskStatus {
+  id        String   @id @default(cuid())
+  task      Task     @relation(fields: [taskId], references: [id])
+  taskId    String
+  date      DateTime
+  status    Status   @default(NONE)
+
+  @@unique([taskId, date])
+}
+
+enum Status {
+  NONE
+  FAIL
+  HALF
+  SUCCESS
 }
