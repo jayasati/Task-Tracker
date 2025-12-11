@@ -10,6 +10,8 @@ export default function TasksList() {
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    keepPreviousData: true,
   });
   const utils = trpc.useUtils();
   const [currentMonth] = useState(new Date());
