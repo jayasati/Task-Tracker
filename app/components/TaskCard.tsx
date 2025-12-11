@@ -22,13 +22,15 @@ type TaskCardProps = {
     subtasks?: string[];
     notes?: string | null;
 
-    logs: { seconds: number }[];
+    logs: { seconds: number; date: string | Date }[];
 
     statuses: {
       id: string;
       taskId: string;
       date: string | Date;
       status: Status;
+      completedSubtasks: string[];
+      dailySubtasks: string[];
     }[];
   };
 
@@ -60,6 +62,12 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
     },
   });
 
+  const updateStatus = trpc.task.updateStatus.useMutation({
+    onSuccess: refetch, // or optimistically update if feeling brave
+  });
+
+  const today = new Date().toISOString().split("T")[0];
+
   const totalFromDB = task.logs.reduce((s, l) => s + l.seconds, 0);
   const [localSeconds, setLocalSeconds] = useState(totalFromDB);
   const [tick, setTick] = useState<ReturnType<typeof setInterval> | null>(null);
@@ -67,8 +75,6 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
   useEffect(() => {
     if (!tick) setLocalSeconds(totalFromDB);
   }, [totalFromDB]);
-
-  const today = new Date().toISOString().split("T")[0];
 
   const start = () => {
     if (tick) return;
@@ -102,6 +108,85 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
     if (!confirmed) return;
     deleteTask.mutate({ taskId: task.id });
   };
+
+  const currentStatus = task.statuses.find((s) => {
+    const d = new Date(s.date);
+    return d.toISOString().split("T")[0] === today;
+  });
+
+  // OPTIMISTIC STATE: Initialize from props, but allow immediate local updates
+  const [localCompleted, setLocalCompleted] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Sync with server data when it arrives
+    if (currentStatus) {
+      setLocalCompleted(currentStatus.completedSubtasks);
+    } else {
+      setLocalCompleted([]);
+    }
+  }, [currentStatus]);
+
+  const completedSubtasks = localCompleted; // Use local state for rendering
+
+  // Calculate Subtask Rollover Logic
+  // 1. Find the most recent status record before today
+  const prevStatus = task.statuses
+    .filter(s => new Date(s.date) < new Date(today))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+  // 2. Identify uncompleted tasks from that day
+  let rolledOverSubtasks: string[] = [];
+  if (prevStatus) {
+    const prevDaily = (prevStatus.dailySubtasks && prevStatus.dailySubtasks.length > 0)
+      ? prevStatus.dailySubtasks
+      : (task.subtasks ?? []);
+    rolledOverSubtasks = prevDaily.filter(s => !prevStatus.completedSubtasks.includes(s));
+  }
+
+  // Use daily-specific subtasks if they exist (and strictly if array is not empty to avoid overwriting with empty), 
+  // otherwise fallback to template + rollover. 
+  // Note: If user deletes all day subtasks, we might need a flag, but for now assuming empty = fallback is safer for migration.
+  const hasDailySubtasks = currentStatus?.dailySubtasks && currentStatus.dailySubtasks.length > 0;
+
+  const activeSubtasks = hasDailySubtasks
+    ? (currentStatus?.dailySubtasks ?? [])
+    : Array.from(new Set([...rolledOverSubtasks, ...(task.subtasks ?? [])]));
+
+  const toggleSubtask = (sub: string) => {
+    const isCompleted = completedSubtasks.includes(sub);
+    const newCompleted = isCompleted
+      ? completedSubtasks.filter((s) => s !== sub)
+      : [...completedSubtasks, sub];
+
+    // 1. Optimistic Update
+    setLocalCompleted(newCompleted);
+
+    // 2. Calculate new status
+    let newStatus = currentStatus?.status ?? "NONE";
+    const total = activeSubtasks.length;
+    if (total > 0) {
+      const count = newCompleted.length;
+      if (count === total) {
+        newStatus = "SUCCESS";
+      } else if (count > 0) {
+        newStatus = "HALF";
+      } else {
+        newStatus = "NONE";
+      }
+    }
+
+    // 3. Mutate (background sync)
+    // We don't wait for success to update UI
+    updateStatus.mutate({
+      taskId: task.id,
+      date: today,
+      completedSubtasks: newCompleted,
+      status: newStatus as "NONE" | "FAIL" | "HALF" | "SUCCESS",
+      dailySubtasks: activeSubtasks,
+    });
+  };
+
+
 
   return (
     <div className="box task">
@@ -190,12 +275,38 @@ export default function TaskCard({ task, refetch, currentMonth }: TaskCardProps)
         <div style={{ marginBottom: '16px' }}>
           <strong style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '8px' }}>Subtasks</strong>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {task.subtasks.map((sub, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
-                <div style={{ width: '16px', height: '16px', border: '1px solid #cbd5e0', borderRadius: '4px' }}></div>
-                <span>{sub}</span>
-              </div>
-            ))}
+            {activeSubtasks.map((sub, idx) => {
+              const isCompleted = completedSubtasks.includes(sub);
+              return (
+                <div
+                  key={idx}
+                  onClick={() => toggleSubtask(sub)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}
+                >
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    border: isCompleted ? '1px solid #3b82f6' : '1px solid #cbd5e0',
+                    borderRadius: '4px',
+                    background: isCompleted ? '#3b82f6' : 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s'
+                  }}>
+                    {isCompleted && (
+                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 1L3.5 6.5L1 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{
+                    textDecoration: isCompleted ? 'line-through' : 'none',
+                    color: isCompleted ? '#9ca3af' : 'inherit'
+                  }}>{sub}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
