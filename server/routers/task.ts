@@ -35,6 +35,7 @@ export const taskRouter = router({
         logs: {
           select: {
             seconds: true,
+            date: true,
           },
         },
         statuses: {
@@ -43,6 +44,8 @@ export const taskRouter = router({
             taskId: true,
             date: true,
             status: true,
+            completedSubtasks: true,
+            dailySubtasks: true,
           },
         },
       },
@@ -102,7 +105,9 @@ export const taskRouter = router({
     .input(z.object({
       taskId: z.string(),
       date: z.string(),
-      status: z.enum(["NONE", "FAIL", "HALF", "SUCCESS"]),
+      status: z.enum(["NONE", "FAIL", "HALF", "SUCCESS"]).optional(),
+      completedSubtasks: z.array(z.string()).optional(),
+      dailySubtasks: z.array(z.string()).optional(),
     }))
     .mutation(async ({ input }) => {
       const d = new Date(input.date);
@@ -115,12 +120,16 @@ export const taskRouter = router({
           }
         },
         update: {
-          status: input.status
+          ...(input.status ? { status: input.status } : {}),
+          ...(input.completedSubtasks ? { completedSubtasks: input.completedSubtasks } : {}),
+          ...(input.dailySubtasks ? { dailySubtasks: input.dailySubtasks } : {}),
         },
         create: {
           taskId: input.taskId,
           date: d,
-          status: input.status,
+          status: input.status ?? "NONE",
+          completedSubtasks: input.completedSubtasks ?? [],
+          dailySubtasks: input.dailySubtasks ?? [],
         },
       });
     }),
@@ -133,7 +142,21 @@ export const taskRouter = router({
       await prisma.taskStatus.deleteMany({ where: { taskId: input.taskId } });
       const deleted = await prisma.task.delete({ where: { id: input.taskId } }).catch(() => null);
       return { success: !!deleted };
-    })
+    }),
+  //------------------------------------------------
+  updateTask: publicProcedure
+    .input(z.object({
+      id: z.string(),
+      subtasks: z.array(z.string()).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      return prisma.task.update({
+        where: { id: input.id },
+        data: {
+          ...(input.subtasks ? { subtasks: input.subtasks } : {}),
+        },
+      });
+    }),
 
 
 

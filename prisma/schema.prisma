@@ -44,6 +44,11 @@ model TaskStatus {
   date      DateTime
   status    Status   @default(NONE)
 
+  // Subtask tracking
+  completedSubtasks String[]  @default([])
+  dailySubtasks     String[]  @default([]) // Snapshot of subtasks for that day
+
+
   @@unique([taskId, date])
 }
 
