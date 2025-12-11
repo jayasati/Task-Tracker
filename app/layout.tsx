@@ -1,4 +1,5 @@
 "use client";
+import "./globals.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
 import { httpBatchLink } from "@trpc/client";
