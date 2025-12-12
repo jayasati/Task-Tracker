@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Task + Time Tracker — Enhanced</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* small helpers to match your visual aesthetic */
+    .card {
+      @apply bg-white rounded-2xl shadow-lg p-6;
+    }
+
+    .muted {
+      color: #6b7280;
+    }
+
+    .pill {
+      @apply rounded-xl px-3 py-1 border;
+    }
+
+    .timer {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-b from-indigo-600 to-violet-700 text-gray-800">
+  <div class="max-w-5xl mx-auto py-12 px-4">
+    <h1 class="text-4xl font-extrabold text-white text-center mb-8">Task + Time Tracker — Enhanced</h1>
+
+    <!-- Create Task Form -->
+    <div class="card mb-8">
+      <form id="taskForm" class="space-y-4">
+        <div class="flex gap-4">
+          <input id="taskName" required placeholder="Enter task name" class="flex-1 border rounded-lg px-4 py-3" />
+          <select id="taskType" class="w-48 border rounded-lg px-3 py-3">
+            <option value="task">Task</option>
+            <option value="amount">Amount-based</option>
+            <option value="time">Time-based</option>
+          </select>
+          <button class="bg-gradient-to-r from-indigo-500 to-pink-400 text-white px-4 py-3 rounded-lg" type="submit">Add
+            Task</button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="text-sm block text-gray-600">Repeat</label>
+            <select id="repeatMode" class="border rounded-lg px-3 py-2 w-full">
+              <option value="none">None</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="custom">Custom weekdays</option>
+            </select>
+          </div>
+
+          <div id="weekdayPicker" class="hidden">
+            <label class="text-sm block text-gray-600">Weekdays</label>
+            <div class="flex gap-2 mt-2">
+              <label class="pill"><input type="checkbox" value="1" class="weekday mr-1" />Mon</label>
+              <label class="pill"><input type="checkbox" value="2" class="weekday mr-1" />Tue</label>
+              <label class="pill"><input type="checkbox" value="3" class="weekday mr-1" />Wed</label>
+              <label class="pill"><input type="checkbox" value="4" class="weekday mr-1" />Thu</label>
+              <label class="pill"><input type="checkbox" value="5" class="weekday mr-1" />Fri</label>
+              <label class="pill"><input type="checkbox" value="6" class="weekday mr-1" />Sat</label>
+              <label class="pill"><input type="checkbox" value="0" class="weekday mr-1" />Sun</label>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm block text-gray-600">Date range</label>
+            <div class="flex gap-2 mt-2">
+              <input id="startDate" type="date" class="border rounded-lg px-3 py-2 w-1/2" />
+              <input id="endDate" type="date" class="border rounded-lg px-3 py-2 w-1/2" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-4">
+          <div>
+            <label class="text-sm text-gray-600">Priority</label>
+            <select id="priority" class="border rounded-lg px-3 py-2 w-full">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-600">Category</label>
+            <input id="category" placeholder="e.g. Study, Fitness" class="border rounded-lg px-3 py-2 w-full" />
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-600">Amount (optional)</label>
+            <input id="amount" placeholder="e.g. 2 liters, 10 reps" class="border rounded-lg px-3 py-2 w-full" />
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-600">Estimate time (mins)</label>
+            <input id="estimate" type="number" min="0" class="border rounded-lg px-3 py-2 w-full" />
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm text-gray-600">Subtasks (comma separated)</label>
+          <input id="subtasks" placeholder="e.g. chapter1, chapter2" class="border rounded-lg px-3 py-2 w-full" />
+        </div>
+
+        <div>
+          <label class="text-sm text-gray-600">Notes</label>
+          <textarea id="notes" rows="2" class="border rounded-lg px-3 py-2 w-full"></textarea>
+        </div>
+
+      </form>
+    </div>
+
+    <div class="flex gap-4">
+      <div class="w-2/3 card">
+        <h2 class="text-xl font-semibold mb-4">Tasks</h2>
+        <div id="tasksContainer" class="space-y-4"></div>
+      </div>
+
+      <div class="w-1/3 space-y-4">
+        <div class="card">
+          <h3 class="font-semibold">Summary</h3>
+          <div class="mt-4 text-sm muted">
+            <div>Total tasks: <span id="totalTasks">0</span></div>
+            <div>Active subscriptions: <span id="subsCount">0</span></div>
+            <div>Streak leaderboard:</div>
+            <ol id="streakList" class="mt-2 list-decimal ml-6"></ol>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="font-semibold">Charts</h3>
+          <canvas id="timeChart" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <template id="taskTemplate">
+    <div class="task card" data-id="">
+      <div class="flex justify-between items-start">
+        <div>
+          <div class="flex items-center gap-3">
+            <h3 class="task-title text-lg font-semibold"></h3>
+            <span class="px-2 py-1 text-xs rounded-md bg-gray-100 text-gray-700 task-badge"></span>
+            <span class="ml-2 text-sm muted task-meta"></span>
+          </div>
+          <p class="muted task-notes mt-2"></p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn-delete bg-red-500 text-white rounded-md px-3 py-1">Delete</button>
+        </div>
+      </div>
+
+      <div class="mt-4 bg-gray-50 rounded-lg p-4">
+        <div class="flex items-center gap-4">
+          <div class="text-3xl font-bold timer task-timer">00:00:00</div>
+          <div class="flex gap-2">
+            <button
+              class="btn-start bg-gradient-to-r from-indigo-500 to-indigo-400 text-white px-4 py-2 rounded-md">Start</button>
+            <button
+              class="btn-stop bg-gradient-to-r from-pink-400 to-pink-300 text-white px-4 py-2 rounded-md">Stop</button>
+            <button class="btn-log bg-gray-200 px-3 py-2 rounded-md">Log</button>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <strong class="muted">Subtasks</strong>
+          <div class="mt-2 subtask-list"></div>
+        </div>
+
+        <div class="mt-4">
+          <strong class="muted">Daily progress</strong>
+          <div class="mt-2 day-boxes flex gap-2 overflow-x-auto py-2"></div>
+        </div>
+
+        <div class="mt-3 flex items-center gap-3 text-sm muted">
+          <div>Streak: <span class="streak-count font-semibold">0</span></div>
+          <div class="ml-4">Priority: <span class="task-priority"></span></div>
+          <div class="ml-4">Category: <span class="task-category"></span></div>
+        </div>
+
+      </div>
+    </div>
+  </template>
+
+  <script>
+    // Storage keys
+    const STORAGE_KEY = 'tt_tasks_v1';
+
+    // Utilities
+    function uid() { return Math.random().toString(36).slice(2, 9); }
+    function fmtTime(secs) {
+      const h = Math.floor(secs / 3600).toString().padStart(2, '0');
+      const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
+      const s = Math.floor(secs % 60).toString().padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+    function daysBetween(a, b) { return Math.round((b - a) / (1000 * 60 * 60 * 24)); }
+
+    // Load / Save
+    function loadTasks() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+      catch (e) { return [] }
+    }
+    function saveTasks(tasks) { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
+
+    // State
+    let tasks = loadTasks();
+    let timers = {}; // id -> interval
+
+    // DOM refs
+    const taskForm = document.getElementById('taskForm');
+    const tasksContainer = document.getElementById('tasksContainer');
+    const taskTemplate = document.getElementById('taskTemplate');
+    const repeatMode = document.getElementById('repeatMode');
+    const weekdayPicker = document.getElementById('weekdayPicker');
+    const totalTasks = document.getElementById('totalTasks');
+    const streakList = document.getElementById('streakList');
+    const subsCount = document.getElementById('subsCount');
+
+    // Chart
+    const timeChartCtx = document.getElementById('timeChart').getContext('2d');
+    let timeChart = new Chart(timeChartCtx, { type: 'bar', data: { labels: [], datasets: [{ label: 'Time (mins)', data: [] }] }, options: { responsive: true } });
+
+    function updateSummary() {
+      totalTasks.textContent = tasks.length;
+      subsCount.textContent = 0; // placeholder if you integrate subscriptions
+      // streak leaderboard
+      const ranked = [...tasks].sort((a, b) => (b.streak || 0) - (a.streak || 0)).slice(0, 5);
+      streakList.innerHTML = '';
+      ranked.forEach(t => { const li = document.createElement('li'); li.textContent = `${t.name} — ${t.streak || 0}`; streakList.appendChild(li); });
+      renderChart();
+    }
+
+    function renderChart() {
+      // show total time last 30 days per task (minutes)
+      const labels = [];
+      const data = [];
+      const last30 = tasks.slice(0, 8); // top few tasks only to keep chart readable
+      last30.forEach(t => { labels.push(t.name); const mins = (t.totalSeconds || 0) / 60; data.push(Math.round(mins)); });
+      timeChart.data.labels = labels; timeChart.data.datasets[0].data = data; timeChart.update();
+    }
+
+    function createDayBoxes(task, container) {
+      container.innerHTML = '';
+      // Auto-generate days between start and end (or last 30 days)
+      const today = new Date();
+      let start = task.startDate ? new Date(task.startDate) : new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+      let end = task.endDate ? new Date(task.endDate) : new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const days = daysBetween(start, end) + 1;
+      for (let i = 0; i < days; i++) {
+        const d = new Date(start); d.setDate(start.getDate() + i);
+        // apply repeat rules
+        let show = true;
+        if (task.repeatMode === 'custom') { const weekday = d.getDay().toString(); if (!(task.weekdays || []).includes(weekday)) show = false; }
+        if (task.repeatMode === 'weekly') { /* show once per week: show day-of-week equal to start's weekday */ const sday = new Date(task.startDate || start).getDay(); if (d.getDay() !== sday) show = false; }
+        if (!show) continue;
+        const key = d.toISOString().slice(0, 10);
+        const state = (task.progress || {})[key] || 'none';
+        const btn = document.createElement('button');
+        btn.className = 'w-10 h-10 rounded-lg border flex items-center justify-center';
+        btn.textContent = d.getDate();
+        btn.dataset.date = key;
+        btn.dataset.state = state;
+        btn.onclick = () => {
+          // rotate through states none -> partial -> success -> failed
+          const order = ['none', 'partial', 'success', 'failed'];
+          const idx = order.indexOf(btn.dataset.state);
+          const next = order[(idx + 1) % order.length];
+          btn.dataset.state = next;
+          btn.style.background = stateColor(next);
+          task.progress = task.progress || {};
+          task.progress[key] = next;
+          if (next === 'success') task.streak = (task.streak || 0) + 1;
+          else if (next === 'none') task.streak = Math.max((task.streak || 0) - 1, 0);
+          saveAndRerender();
+        };
+        btn.style.background = stateColor(state);
+        container.appendChild(btn);
+      }
+    }
+    function stateColor(s) { if (s === 'none') return ''; if (s === 'success') return '#34D399'; if (s === 'partial') return '#FBBF24'; if (s === 'failed') return '#F87171'; return ''; }
+
+    function renderTasks() {
+      tasksContainer.innerHTML = '';
+      tasks.forEach(task => {
+        const tpl = taskTemplate.content.cloneNode(true);
+        const el = tpl.querySelector('.task');
+        el.dataset.id = task.id;
+        tpl.querySelector('.task-title').textContent = task.name;
+        tpl.querySelector('.task-badge').textContent = task.type;
+        tpl.querySelector('.task-meta').textContent = `${task.estimate ? task.estimate + 'min' : ''}`;
+        tpl.querySelector('.task-notes').textContent = task.notes || '';
+        tpl.querySelector('.task-priority').textContent = task.priority;
+        tpl.querySelector('.task-category').textContent = task.category || '-';
+        tpl.querySelector('.streak-count').textContent = task.streak || 0;
+        // timer
+        const timerEl = tpl.querySelector('.task-timer');
+        const total = task.totalSeconds || 0; timerEl.textContent = fmtTime(total);
+        tpl.querySelector('.btn-start').onclick = () => startTimer(task.id, timerEl);
+        tpl.querySelector('.btn-stop').onclick = () => stopTimer(task.id, timerEl);
+        tpl.querySelector('.btn-log').onclick = () => logTime(task.id);
+        tpl.querySelector('.btn-delete').onclick = () => { if (confirm('Delete task?')) { tasks = tasks.filter(t => t.id !== task.id); saveAndRerender(); } };
+        // subtasks
+        const subContainer = tpl.querySelector('.subtask-list'); subContainer.innerHTML = '';
+        (task.subtasks || []).forEach((s, si) => {
+          const row = document.createElement('div');
+          const chk = document.createElement('input'); chk.type = 'checkbox'; chk.checked = task.subtaskState && task.subtaskState[si];
+          chk.onchange = () => { task.subtaskState = task.subtaskState || {}; task.subtaskState[si] = chk.checked; saveAndRerender(); };
+          row.appendChild(chk);
+          const span = document.createElement('span'); span.className = 'ml-2'; span.textContent = s; row.appendChild(span);
+          subContainer.appendChild(row);
+        });
+        // day boxes
+        const dayBoxes = tpl.querySelector('.day-boxes');
+        createDayBoxes(task, dayBoxes);
+
+        tasksContainer.appendChild(tpl);
+      });
+      updateSummary();
+    }
+
+    function saveAndRerender() { saveTasks(tasks); renderTasks(); }
+
+    // Timer functions
+    function startTimer(id, timerEl) {
+      stopTimer(id, timerEl);
+      const task = tasks.find(t => t.id === id); if (!task) return;
+      task._runningSince = Date.now();
+      timers[id] = setInterval(() => {
+        const delta = Math.floor((Date.now() - task._runningSince) / 1000) + (task.totalSeconds || 0);
+        timerEl.textContent = fmtTime(delta);
+      }, 500);
+      saveTasks(tasks);
+    }
+    function stopTimer(id, timerEl) {
+      const task = tasks.find(t => t.id === id); if (!task) return;
+      if (task._runningSince) {
+        const elapsed = Math.floor((Date.now() - task._runningSince) / 1000);
+        task.totalSeconds = (task.totalSeconds || 0) + elapsed;
+        delete task._runningSince;
+      }
+      if (timers[id]) clearInterval(timers[id]); delete timers[id];
+      timerEl.textContent = fmtTime(task.totalSeconds || 0);
+      saveTasks(tasks);
+      renderChart();
+    }
+    function logTime(id) { const task = tasks.find(t => t.id === id); if (!task) return; const seconds = prompt('Enter seconds to add (or minutes like 10m):'); if (!seconds) return; let s = 0; if (seconds.endsWith('m')) s = parseFloat(seconds.slice(0, -1)) * 60; else s = parseFloat(seconds); if (isNaN(s)) return; task.totalSeconds = (task.totalSeconds || 0) + Math.round(s); saveAndRerender(); }
+
+    // Form handling
+    taskForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const name = document.getElementById('taskName').value.trim();
+      if (!name) return alert('Add a name');
+      const type = document.getElementById('taskType').value;
+      const repeat = document.getElementById('repeatMode').value;
+      const weekdays = Array.from(document.querySelectorAll('.weekday:checked')).map(n => n.value);
+      const startDate = document.getElementById('startDate').value || new Date().toISOString().slice(0, 10);
+      const endDate = document.getElementById('endDate').value || null;
+      const priority = document.getElementById('priority').value;
+      const category = document.getElementById('category').value.trim();
+      const amount = document.getElementById('amount').value.trim();
+      const estimate = Number(document.getElementById('estimate').value) || 0;
+      const subtasks = document.getElementById('subtasks').value.split(',').map(s => s.trim()).filter(Boolean);
+      const notes = document.getElementById('notes').value.trim();
+      const t = { id: uid(), name, type, repeatMode: repeat, weekdays, startDate, endDate, priority, category, amount, estimate, subtasks, notes, totalSeconds: 0, progress: {}, streak: 0 };
+      // auto generate day entries between start and end if requested
+      if (endDate) {
+        const s = new Date(startDate); const e = new Date(endDate);
+        const days = daysBetween(s, e) + 1;
+        for (let i = 0; i < days; i++) {
+          const d = new Date(s); d.setDate(s.getDate() + i);
+          if (repeat === 'custom') { if (!t.weekdays.includes(String(d.getDay()))) continue; }
+          if (repeat === 'weekly') { const sd = new Date(startDate).getDay(); if (d.getDay() !== sd) continue; }
+          // generate empty progress key
+          t.progress[d.toISOString().slice(0, 10)] = 'none';
+        }
+      }
+      tasks.unshift(t);
+      saveAndRerender();
+      taskForm.reset(); document.getElementById('weekdayPicker').classList.add('hidden');
+    });
+
+    repeatMode.addEventListener('change', () => {
+      if (repeatMode.value === 'custom') weekdayPicker.classList.remove('hidden'); else weekdayPicker.classList.add('hidden');
+    });
+
+    // initial render
+    renderTasks();
+
+    // expose some quick actions for demo
+    window.saveTasks = saveTasks; window.loadTasks = loadTasks; window.tasks = tasks;
+
+  </script>
+</body>
+
+</html>

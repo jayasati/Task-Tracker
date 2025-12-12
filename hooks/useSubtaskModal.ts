@@ -99,3 +99,37 @@ export function useSubtaskModal({
         isSavingPlan: updateTask.isPending
     };
 }
+
+/**
+ * FILE: hooks/useSubtaskModal.ts
+ * 
+ * PURPOSE:
+ * Hook managing subtask modal state and logic for a specific day.
+ * Handles viewing/editing subtasks for any day (past, present, future).
+ * 
+ * WHAT IT DOES:
+ * - Manages active subtasks and completed state for selected day
+ * - Handles subtask toggling with status calculation
+ * - Implements "plan next day" feature
+ * - Determines if viewing history (frozen) or current day (editable)
+ * - Includes rollover logic for current day
+ * - Fixes timezone issues when saving dates
+ * 
+ * DEPENDENCIES (imports from):
+ * - react: useState, useEffect hooks
+ * - @/utils/trpc: TRPC client for mutations
+ * - @prisma/client: Status enum type
+ * - @/lib/utils/status: calculateStatusFromSubtasks function
+ * - @/lib/utils/date: toISODate for date formatting
+ * 
+ * DEPENDENTS (files that import this):
+ * - app/components/SubtaskModal.tsx: Main modal component
+ * 
+ * NOTES:
+ * - isHistory: true if day has dailySubtasks (frozen), false otherwise
+ * - For history days: shows frozen dailySubtasks
+ * - For current/future: shows global + rolled over from previous day
+ * - toggleSubtask: Updates status based on completion ratio
+ * - Timezone fix: Adjusts date by offset before saving
+ * - Planning feature: Allows editing global subtasks for next day
+ */

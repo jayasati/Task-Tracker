@@ -7,16 +7,23 @@ import { useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 
 export default function TasksList() {
-  const { data: tasks, isLoading } = trpc.task.getTasks.useQuery(undefined, {
-    staleTime: 60000, // Cache for 60 seconds
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    placeholderData: keepPreviousData,
-  });
-  const utils = trpc.useUtils();
   const [currentMonth] = useState(new Date());
+
+  const { data: tasks, isLoading } = trpc.task.getTasks.useQuery(
+    {
+      month: currentMonth.getMonth(),
+      year: currentMonth.getFullYear(),
+    },
+    {
+      staleTime: 60000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      placeholderData: keepPreviousData,
+    }
+  );
+  const utils = trpc.useUtils();
 
   const refetch = () => {
     utils.task.getTasks.invalidate();
