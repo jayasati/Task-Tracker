@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/utils/trpc";
+import { useRouter } from "next/navigation";
 
 export type TaskType = "task" | "amount" | "time";
 
@@ -20,7 +21,7 @@ export interface AddTaskFormState {
 
 export function useAddTaskForm() {
     const [isExpanded, setIsExpanded] = useState(false);
-    const utils = trpc.useUtils();
+    const router = useRouter();
 
     const [form, setForm] = useState<AddTaskFormState>({
         title: "",
@@ -54,7 +55,8 @@ export function useAddTaskForm() {
                 notes: ""
             });
             setIsExpanded(false);
-            utils.task.getTasks.invalidate();
+            // Refresh server component to show new task
+            router.refresh();
         },
     });
 
@@ -93,3 +95,40 @@ export function useAddTaskForm() {
 
     return { form, updateForm, toggleWeekday, submit, isExpanded, setIsExpanded, isPending: addTask.isPending };
 }
+
+/**
+ * FILE: hooks/useAddTaskForm.ts
+ * 
+ * PURPOSE:
+ * Custom hook that manages the state and logic for the AddTask form.
+ * Handles form data, validation, submission, and UI state.
+ * 
+ * WHAT IT DOES:
+ * - Manages form state for all task fields (title, type, priority, etc.)
+ * - Provides updateForm function to update individual fields
+ * - Handles weekday selection with toggleWeekday function
+ * - Submits task data via TRPC mutation
+ * - Resets form and collapses on successful submission
+ * - Uses router.refresh() to revalidate server components
+ * - Tracks form expansion state and pending status
+ * 
+ * DEPENDENCIES (imports from):
+ * - react: useState hook
+ * - @/utils/trpc: TRPC client for mutations
+ * - next/navigation: useRouter for page refresh
+ * 
+ * DEPENDENTS (files that import this):
+ * - app/components/AddTask.tsx: Main consumer of this hook
+ * 
+ * RELATED FILES:
+ * - server/routers/task.ts: Defines addTask mutation endpoint
+ * - app/components/add-task/*: Form section components
+ * 
+ * NOTES:
+ * - Form state includes: title, type, repeatMode, weekdays, dates, priority,
+ *   category, amount, estimate, subtasksStr, notes
+ * - subtasksStr is comma-separated string, split before submission
+ * - Empty/whitespace-only titles are rejected
+ * - router.refresh() triggers server component revalidation
+ * - isExpanded controls form visibility (collapsed by default)
+ */

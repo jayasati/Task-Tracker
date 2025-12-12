@@ -108,3 +108,36 @@ export function useTaskSubtasks(
         setNewSubtaskName
     };
 }
+
+/**
+ * FILE: hooks/useTaskSubtasks.ts
+ * 
+ * PURPOSE:
+ * Hook managing subtask state and logic for tasks with subtasks.
+ * Handles completion tracking, rollover, and adding new subtasks.
+ * 
+ * WHAT IT DOES:
+ * - Finds today's status entry from task statuses
+ * - Manages local completed subtasks state
+ * - Implements rollover logic (uncompleted from previous day)
+ * - Determines active subtasks (daily frozen or global + rolled over)
+ * - toggleSubtask: Marks subtask complete/incomplete, updates status
+ * - handleAddSubtask: Adds new subtask to today's daily list
+ * - Calculates task status based on completion ratio
+ * 
+ * DEPENDENCIES (imports from):
+ * - react: useState, useEffect hooks
+ * - @/types/task: Task type definition
+ * 
+ * DEPENDENTS (files that import this):
+ * - app/components/TaskCard.tsx: Uses for subtask management
+ * - app/components/tasks/SubtaskList.tsx: Displays subtasks
+ * 
+ * NOTES:
+ * - Rollover: Uncompleted subtasks from previous day carry to today
+ * - Daily freeze: Once status is set, dailySubtasks are frozen for that day
+ * - Status calculation: 0% = NONE, 100% = SUCCESS, partial = HALF
+ * - updateStatus mutation includes completedSubtasks and dailySubtasks
+ * - Uses ISO date string for today comparison
+ * - prevStatus: Most recent status before today (for rollover)
+ */

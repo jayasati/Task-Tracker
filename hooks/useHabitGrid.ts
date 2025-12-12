@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { trpc } from "@/utils/trpc";
 import { Task } from "@/types/task";
 import { formatDateKey, toISODate, getDateString, isSameDay } from "@/lib/utils/date";
@@ -14,23 +14,46 @@ export function useHabitGrid(task: Task, refetch: () => void, currentMonth: Date
 
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const today = new Date();
-    const isCurrentMonth = isSameDay(new Date(year, month, 1), new Date(today.getFullYear(), today.getMonth(), 1));
 
-    const getStatus = (day: number) => {
+    // Memoize date calculations
+    const { daysInMonth, today, isCurrentMonth } = useMemo(() => {
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+        const isCurrentMonth = isSameDay(new Date(year, month, 1), new Date(today.getFullYear(), today.getMonth(), 1));
+        return { daysInMonth, today, isCurrentMonth };
+    }, [year, month]);
+
+    // Memoize status map for faster lookups
+    const statusMap = useMemo(() => {
+        const map = new Map<string, typeof task.statuses[0]>();
+        task.statuses.forEach((status) => {
+            const dateStr = toISODate(status.date);
+            map.set(dateStr, status);
+        });
+        return map;
+    }, [task.statuses]);
+
+    // Memoize logs map for time calculations
+    const logsMap = useMemo(() => {
+        const map = new Map<string, number>();
+        task.logs.forEach((log) => {
+            const dateStr = toISODate(log.date);
+            map.set(dateStr, (map.get(dateStr) || 0) + log.seconds);
+        });
+        return map;
+    }, [task.logs]);
+
+    const getStatus = useCallback((day: number) => {
         const dateStr = formatDateKey(year, month, day);
-        return (
-            task.statuses.find((s) => toISODate(s.date) === dateStr)?.status ?? "NONE"
-        );
-    };
+        return statusMap.get(dateStr)?.status ?? "NONE";
+    }, [year, month, statusMap]);
 
-    const isDayToday = (day: number) => {
+    const isDayToday = useCallback((day: number) => {
         if (!isCurrentMonth) return false;
         return today.getDate() === day;
-    };
+    }, [isCurrentMonth, today]);
 
-    const toggle = (day: number) => {
+    const toggle = useCallback((day: number) => {
         const date = new Date(year, month, day);
 
         if (task.type === "task" && (task.subtasks?.length ?? 0) > 0) {
@@ -52,13 +75,11 @@ export function useHabitGrid(task: Task, refetch: () => void, currentMonth: Date
             date: dateStr,
             status: next,
         });
-    };
+    }, [year, month, task.type, task.subtasks, task.id, getStatus, updateStatus]);
 
-    const getTimeColor = (day: number) => {
+    const getTimeColor = useCallback((day: number) => {
         const dateStr = formatDateKey(year, month, day);
-        const dailySeconds = task.logs
-            .filter(l => toISODate(l.date) === dateStr)
-            .reduce((acc, l) => acc + l.seconds, 0);
+        const dailySeconds = logsMap.get(dateStr) || 0;
 
         const target = (task.estimate || 0) * 60;
         if (target === 0) return "none";
@@ -68,9 +89,9 @@ export function useHabitGrid(task: Task, refetch: () => void, currentMonth: Date
         if (ratio > 0.7) return "half";
         if (ratio > 0.3) return "fail";
         return "none";
-    };
+    }, [year, month, logsMap, task.estimate]);
 
-    const getPrevDayUnfinished = (currentDay: number): string[] => {
+    const getPrevDayUnfinished = useCallback((currentDay: number): string[] => {
         const targetDate = new Date(year, month, currentDay);
         const targetTime = targetDate.getTime();
         const getTime = (d: string | Date) => new Date(d).getTime();
@@ -86,12 +107,12 @@ export function useHabitGrid(task: Task, refetch: () => void, currentMonth: Date
             : (task.subtasks ?? []);
 
         return sourceList.filter(s => !lastStatus.completedSubtasks.includes(s));
-    };
+    }, [year, month, task.statuses, task.subtasks]);
 
-    const getStatusEntry = (day: number) => {
+    const getStatusEntry = useCallback((day: number) => {
         const dateStr = formatDateKey(year, month, day);
-        return task.statuses.find((s) => toISODate(s.date) === dateStr);
-    };
+        return statusMap.get(dateStr);
+    }, [year, month, statusMap]);
 
     return {
         year,
@@ -108,3 +129,40 @@ export function useHabitGrid(task: Task, refetch: () => void, currentMonth: Date
         getStatusEntry
     };
 }
+
+/**
+ * FILE: hooks/useHabitGrid.ts
+ * 
+ * PURPOSE:
+ * Complex hook managing habit grid logic including status tracking, time-based colors,
+ * subtask modals, and rollover functionality.
+ * 
+ * WHAT IT DOES:
+ * - Manages modal state for subtask selection
+ * - Provides memoized date calculations (daysInMonth, today, isCurrentMonth)
+ * - Creates optimized Maps for status and log lookups (O(1) instead of O(n))
+ * - getStatus: Returns status for a specific day
+ * - isDayToday: Checks if a day is today
+ * - toggle: Handles day box clicks (cycles status or opens subtask modal)
+ * - getTimeColor: Calculates color based on time spent vs estimate
+ * - getPrevDayUnfinished: Gets uncompleted subtasks from previous day
+ * - getStatusEntry: Returns full status entry for a day
+ * 
+ * DEPENDENCIES (imports from):
+ * - react: useState, useMemo, useCallback for optimization
+ * - @/utils/trpc: TRPC client for updateStatus mutation
+ * - @/types/task: Task type definition
+ * - @/lib/utils/date: Date formatting utilities
+ * - @/lib/utils/status: Status cycle and labels
+ * 
+ * DEPENDENTS (files that import this):
+ * - app/components/HabitGrid.tsx: Main consumer of this hook
+ * 
+ * NOTES:
+ * - Heavily optimized with useMemo and useCallback to prevent re-renders
+ * - statusMap and logsMap convert arrays to Maps for O(1) lookups
+ * - Time colors: green (≥100%), yellow (>70%), red (>30%), black (<30%)
+ * - For task type with subtasks, clicking opens modal instead of toggling
+ * - For time type tasks, boxes are non-interactive (color shows progress)
+ * - Rollover logic: uncompleted subtasks from previous day carry forward
+ */
