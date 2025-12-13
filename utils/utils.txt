@@ -1,0 +1,15 @@
+What are utils? (Simple definition)
+Utils = General-purpose helper functions that can be used anywhere in your project.
+
+They are not React components, not API endpoints, and not tied to UI.
+
+Examples include:
+
+Formatting dates
+Generating IDs
+Converting time (seconds → HH:MM:SS)
+Debounce & throttle helpers
+Math or text utilities
+Fetch wrappers
+Validation helpers
+tRPC client creator (which you're using!)

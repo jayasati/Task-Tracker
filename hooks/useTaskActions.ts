@@ -9,7 +9,11 @@ export function useTaskActions(refetch: () => void) {
     });
 
     const deleteTask = trpc.task.deleteTask.useMutation({
-        onSuccess: refetch,
+        onSuccess: () => {
+            // Invalidate the query cache to trigger a refetch
+            utils.task.getTasks.invalidate();
+            refetch();
+        },
     });
 
     const updateStatus = trpc.task.updateStatus.useMutation({

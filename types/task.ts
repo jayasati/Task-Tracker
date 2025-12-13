@@ -23,11 +23,16 @@ export interface Task {
     startDate?: Date | string | null;
     endDate?: Date | string | null;
     priority?: string;
-    category?: string | null;
+    category: string; // Required: "task", "make_habit", "break_habit", "professional"
     amount?: string | null;
     estimate?: number | null;
     subtasks?: string[];
     notes?: string | null;
+    isCompleted: boolean;
+    completedAt?: Date | string | null;
+    isArchived: boolean;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
     logs: TaskLog[];
     statuses: TaskStatus[];
     totalSeconds?: number;
