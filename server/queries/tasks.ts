@@ -60,6 +60,7 @@ export async function getTasksForMonth(month: number, year: number): Promise<Tas
                     status: true,
                     completedSubtasks: true,
                     dailySubtasks: true,
+                    progressLevel: true,
                 },
             },
         },

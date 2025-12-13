@@ -32,6 +32,9 @@ model Task {
   isCompleted  Boolean   @default(false)
   completedAt  DateTime?
   isArchived   Boolean   @default(false)
+  
+  // Progress tracking (0-4 level system)
+  progressLevel Int      @default(0) // 0=not attempted, 1=gray, 2=50%, 3=70%, 4=100%
 }
 
 model TimeLog {
@@ -54,6 +57,8 @@ model TaskStatus {
   completedSubtasks String[]  @default([])
   dailySubtasks     String[]  @default([]) // Snapshot of subtasks for that day
 
+  // Daily progress tracking (0-4 level system)
+  progressLevel Int @default(0) // 0=not attempted, 1=25%, 2=50%, 3=75%, 4=100%
 
   @@unique([taskId, date])
 }

@@ -30,7 +30,7 @@ export default function SubTabs({ activeTab, counts }: SubTabsProps) {
     };
 
     return (
-        <div className="bg-gray-50/50 border-b border-gray-200">
+        <div className="bg-gray-50/50 border-b border-gray-200 sticky top-[73px] z-10">
             <div className="max-w-7xl mx-auto px-6 py-3">
                 <div className="flex gap-3">
                     {views.map((view) => (

@@ -13,6 +13,7 @@ import {
     SubView
 } from '@/lib/utils/filters';
 import TaskCard from '../TaskCard';
+import { ReportsCategoryBoxes } from '../reports/ReportsCategoryBoxes';
 
 interface TaskListContainerProps {
     tasks: Task[];
@@ -34,11 +35,6 @@ export default function TaskListContainer({ tasks, currentMonth, refetch }: Task
             return getTodayTasks(tasks);
         }
 
-        if (activeTab === 'reports') {
-            const habits = getHabitsOnly(tasks);
-            return filterBySubView(habits, activeView);
-        }
-
         // Regular category filtering
         const categoryTasks = filterByCategory(tasks, activeTab as Category);
         return filterBySubView(categoryTasks, activeView);
@@ -46,11 +42,16 @@ export default function TaskListContainer({ tasks, currentMonth, refetch }: Task
 
     // Get current category counts for sub-tabs
     const currentCounts = useMemo(() => {
-        if (activeTab === 'today' || activeTab === 'reports') {
+        if (activeTab === 'today') {
             return counts[activeTab];
         }
         return counts[activeTab as Category];
     }, [counts, activeTab]);
+
+    // If on Reports tab, render ReportsCategoryBoxes instead
+    if (activeTab === 'reports') {
+        return <ReportsCategoryBoxes tasks={tasks} />;
+    }
 
     if (filteredTasks.length === 0) {
         return (

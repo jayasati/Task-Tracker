@@ -178,6 +178,15 @@ export const MODE_CONFIG: Record<ModeType, ModeConfig> = {
 };
 
 export function getModeConfig(category: string): ModeConfig {
-    const modeType = category as ModeType;
+    // Map professional subcategories to their parent mode
+    const professionalSubcategories = ['meeting', 'coding', 'study', 'sales'];
+
+    let modeType: ModeType;
+    if (professionalSubcategories.includes(category.toLowerCase())) {
+        modeType = 'professional';
+    } else {
+        modeType = category as ModeType;
+    }
+
     return MODE_CONFIG[modeType] || MODE_CONFIG.task;
 }
