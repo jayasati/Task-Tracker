@@ -1,11 +1,12 @@
 "server-only";
 import { prisma } from "../db";
+import { Task } from "@/types/task";
 
 /**
  * Server-side query to fetch tasks with optimized data loading
  * Fetches fresh data on every request to ensure UI stays in sync
  */
-export async function getTasksForMonth(month: number, year: number) {
+export async function getTasksForMonth(month: number, year: number): Promise<Task[]> {
     const startDate = new Date(year, month, 1);
     const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
@@ -28,6 +29,11 @@ export async function getTasksForMonth(month: number, year: number) {
             estimate: true,
             subtasks: true,
             notes: true,
+            isCompleted: true,
+            completedAt: true,
+            isArchived: true,
+            createdAt: true,
+            updatedAt: true,
             logs: {
                 where: {
                     date: {
@@ -80,7 +86,7 @@ export async function getTasksForMonth(month: number, year: number) {
     return tasks.map((task) => ({
         ...task,
         totalSeconds: totalsMap.get(task.id) || 0,
-    }));
+    })) as Task[];
 }
 
 /**

@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/utils/trpc";
-import { useRouter } from "next/navigation";
 
 export type TaskType = "task" | "amount" | "time";
 
@@ -19,49 +18,106 @@ export interface AddTaskFormState {
     notes: string;
 }
 
-export function useAddTaskForm() {
+// Helper to map tab names to category values
+const mapTabToCategory = (tab: string): string => {
+    switch (tab) {
+        case 'make_habit':
+            return 'make_habit';
+        case 'break_habit':
+            return 'break_habit';
+        case 'professional':
+            return 'professional';
+        case 'task':
+            return 'task';
+        case 'today':
+        case 'reports':
+        default:
+            return 'task'; // Default to task for Today and Reports tabs
+    }
+};
+
+export function useAddTaskForm(activeTab: string) {
     const [isExpanded, setIsExpanded] = useState(false);
-    const router = useRouter();
+    const utils = trpc.useUtils();
 
     const [form, setForm] = useState<AddTaskFormState>({
         title: "",
         type: "task",
         repeatMode: "none",
         weekdays: [],
-        startDate: "",
+        startDate: "", // Will be set in useEffect to avoid hydration mismatch
         endDate: "",
         priority: "medium",
-        category: "",
+        category: mapTabToCategory(activeTab), // Sync with active tab
         amount: "",
         estimate: "",
         subtasksStr: "",
         notes: ""
     });
 
+    // Set today's date on client side only to avoid hydration mismatch
+    useEffect(() => {
+        const today = new Date().toISOString().split('T')[0];
+        setForm(prev => ({
+            ...prev,
+            startDate: prev.startDate || today
+        }));
+    }, []);
+
+    // Sync category with active tab when it changes
+    useEffect(() => {
+        const newCategory = mapTabToCategory(activeTab);
+        setForm(prev => ({
+            ...prev,
+            category: newCategory,
+            // Also update repeatMode based on category
+            repeatMode: newCategory === 'task' ? 'none' : (prev.repeatMode === 'none' ? 'daily' : prev.repeatMode)
+        }));
+    }, [activeTab]);
+
     const addTask = trpc.task.addTask.useMutation({
         onSuccess: () => {
+            const today = new Date().toISOString().split('T')[0];
             setForm({
                 title: "",
                 type: "task",
                 repeatMode: "none",
                 weekdays: [],
-                startDate: "",
+                startDate: today,
                 endDate: "",
                 priority: "medium",
-                category: "",
+                category: mapTabToCategory(activeTab), // Sync with active tab
                 amount: "",
                 estimate: "",
                 subtasksStr: "",
                 notes: ""
             });
             setIsExpanded(false);
-            // Refresh server component to show new task
-            router.refresh();
+            // Invalidate and refetch tasks
+            utils.task.getTasks.invalidate();
         },
     });
 
     const updateForm = (field: string, value: any) => {
-        setForm(prev => ({ ...prev, [field]: value }));
+        setForm(prev => {
+            const updated = { ...prev, [field]: value };
+
+            // Auto-set repeatMode when category changes
+            if (field === 'category') {
+                if (value === 'task') {
+                    // Task category should be for irregular tasks only
+                    updated.repeatMode = 'none';
+                } else {
+                    // Habit categories should have a repeat mode
+                    // If currently 'none', set to 'daily' as default
+                    if (prev.repeatMode === 'none') {
+                        updated.repeatMode = 'daily';
+                    }
+                }
+            }
+
+            return updated;
+        });
     };
 
     const toggleWeekday = (day: number) => {
@@ -85,7 +141,7 @@ export function useAddTaskForm() {
             startDate: form.startDate || undefined,
             endDate: form.endDate || undefined,
             priority: form.priority,
-            category: form.category.trim() || undefined,
+            category: form.category,
             amount: form.amount.trim() || undefined,
             estimate: form.estimate ? parseInt(form.estimate) : undefined,
             subtasks: form.subtasksStr.split(",").map(s => s.trim()).filter(Boolean),

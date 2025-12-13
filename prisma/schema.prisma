@@ -12,6 +12,7 @@ model Task {
   title    String
   type     String   @default("task")
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   logs     TimeLog[]
   statuses   TaskStatus[]
   
@@ -21,11 +22,16 @@ model Task {
   startDate  DateTime?
   endDate    DateTime?
   priority   String   @default("medium") // low, medium, high
-  category   String?
+  category   String   @default("task") // task, make_habit, break_habit, professional
   amount     String?  // "10 reps", "2 liters"
   estimate   Int?     // in minutes
   subtasks   String[]
   notes      String?
+  
+  // Completion and archive tracking
+  isCompleted  Boolean   @default(false)
+  completedAt  DateTime?
+  isArchived   Boolean   @default(false)
 }
 
 model TimeLog {

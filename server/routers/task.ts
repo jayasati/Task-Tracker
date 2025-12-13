@@ -41,6 +41,11 @@ export const taskRouter = router({
           estimate: true,
           subtasks: true,
           notes: true,
+          isCompleted: true,
+          completedAt: true,
+          isArchived: true,
+          createdAt: true,
+          updatedAt: true,
           logs: {
             where: {
               date: {
