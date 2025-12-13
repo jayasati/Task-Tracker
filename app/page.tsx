@@ -40,19 +40,12 @@ export default function Home() {
       <SubTabs activeTab={activeTab} counts={counts} />
 
       {/* Header */}
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <h1 className="text-5xl font-extrabold text-blue-700 mb-3 text-center">
+      <div className="max-w-5xl mx-auto px-4 py-6">
+        <h1 className="text-4xl font-extrabold text-blue-700 mb-2 text-center">
           Task + Time Tracker
         </h1>
-        <p className="text-gray-600 text-lg text-center">Organize your tasks, build habits, track progress</p>
+        <p className="text-gray-600 text-base text-center">Organize your tasks, build habits, track progress</p>
       </div>
-
-      {/* Add Task Form - Hide on Reports tab */}
-      {activeTab !== 'reports' && (
-        <div className="max-w-5xl mx-auto px-4 mb-8">
-          <AddTask activeTab={activeTab} />
-        </div>
-      )}
 
       {/* Task List */}
       {isLoading ? (
@@ -67,6 +60,13 @@ export default function Home() {
           currentMonth={currentMonth}
           refetch={refetch}
         />
+      )}
+
+      {/* Add Task Form - Show at bottom, hide on Today and Reports tabs */}
+      {activeTab !== 'reports' && activeTab !== 'today' && (
+        <div className="max-w-5xl mx-auto px-4 pb-8 mt-4">
+          <AddTask activeTab={activeTab} />
+        </div>
       )}
     </div>
   );

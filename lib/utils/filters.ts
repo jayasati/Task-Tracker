@@ -12,6 +12,16 @@ export type MainTab = Category | 'reports' | 'today';
  * Filter tasks by category
  */
 export function filterByCategory(tasks: Task[], category: Category): Task[] {
+    // Professional subcategories should be treated as professional
+    const professionalSubcategories = ['meeting', 'coding', 'study', 'sales'];
+
+    if (category === 'professional') {
+        return tasks.filter(t =>
+            t.category === 'professional' ||
+            professionalSubcategories.includes(t.category?.toLowerCase() || '')
+        );
+    }
+
     return tasks.filter(t => t.category === category);
 }
 

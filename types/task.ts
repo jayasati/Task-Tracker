@@ -12,6 +12,7 @@ export interface TaskStatus {
     status: Status;
     completedSubtasks: string[];
     dailySubtasks: string[];
+    progressLevel: number; // 0-4 level progress tracking
 }
 
 export interface Task {
@@ -31,6 +32,7 @@ export interface Task {
     isCompleted: boolean;
     completedAt?: Date | string | null;
     isArchived: boolean;
+    progressLevel?: number; // 0-4 level progress tracking
     createdAt?: Date | string;
     updatedAt?: Date | string;
     logs: TaskLog[];

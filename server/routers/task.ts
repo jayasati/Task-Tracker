@@ -44,6 +44,7 @@ export const taskRouter = router({
           isCompleted: true,
           completedAt: true,
           isArchived: true,
+          progressLevel: true, // Include progress level
           createdAt: true,
           updatedAt: true,
           logs: {
@@ -72,6 +73,7 @@ export const taskRouter = router({
               status: true,
               completedSubtasks: true,
               dailySubtasks: true,
+              progressLevel: true,
             },
           },
         },
@@ -205,8 +207,59 @@ export const taskRouter = router({
         },
       });
     }),
+  //------------------------------------------------
+  updateProgress: publicProcedure
+    .input(z.object({
+      taskId: z.string(),
+      date: z.string(),
+      progressLevel: z.number().min(0).max(4)
+    }))
+    .mutation(async ({ input }) => {
+      const d = new Date(input.date);
 
+      // Store progress per-day in TaskStatus, not globally on Task
+      const statusResult = await prisma.taskStatus.upsert({
+        where: {
+          taskId_date: {
+            taskId: input.taskId,
+            date: d,
+          }
+        },
+        update: {
+          progressLevel: input.progressLevel,
+        },
+        create: {
+          taskId: input.taskId,
+          date: d,
+          status: "NONE",
+          progressLevel: input.progressLevel,
+          completedSubtasks: [],
+          dailySubtasks: [],
+        },
+      });
 
+      // If all 4 boxes are ticked, mark task as completed
+      if (input.progressLevel === 4) {
+        await prisma.task.update({
+          where: { id: input.taskId },
+          data: {
+            isCompleted: true,
+            completedAt: new Date(),
+          },
+        });
+      } else {
+        // If progress is reduced below 4, unmark as completed
+        await prisma.task.update({
+          where: { id: input.taskId },
+          data: {
+            isCompleted: false,
+            completedAt: null,
+          },
+        });
+      }
+
+      return statusResult;
+    }),
 
 
 

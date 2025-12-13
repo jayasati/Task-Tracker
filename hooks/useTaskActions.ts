@@ -54,7 +54,8 @@ export function useTaskActions(refetch: () => void) {
                                         date: new Date(variables.date),
                                         status: variables.status as Status,
                                         completedSubtasks: variables.completedSubtasks || [],
-                                        dailySubtasks: variables.dailySubtasks || []
+                                        dailySubtasks: variables.dailySubtasks || [],
+                                        progressLevel: 0
                                     }]
                                 };
                             }
@@ -78,7 +79,75 @@ export function useTaskActions(refetch: () => void) {
         },
     });
 
-    return { updateSeconds, deleteTask, updateStatus };
+    const updateProgress = trpc.task.updateProgress.useMutation({
+        // Optimistic update for instant feedback
+        onMutate: async (variables) => {
+            // Cancel all outgoing refetches for getTasks
+            await utils.task.getTasks.cancel();
+
+            // Snapshot previous value for current month
+            const now = new Date();
+            const queryInput = {
+                month: now.getMonth(),
+                year: now.getFullYear(),
+            };
+            const previousTasks = utils.task.getTasks.getData(queryInput);
+
+            // Optimistically update the cache for current month
+            utils.task.getTasks.setData(queryInput, (old) => {
+                if (!old) return old;
+                return old.map((task) => {
+                    if (task.id === variables.taskId) {
+                        // Update or add TaskStatus for this date
+                        const statusIndex = task.statuses.findIndex(
+                            s => new Date(s.date).toISOString().split('T')[0] === variables.date
+                        );
+
+                        if (statusIndex >= 0) {
+                            // Update existing status
+                            const newStatuses = [...task.statuses];
+                            newStatuses[statusIndex] = {
+                                ...newStatuses[statusIndex],
+                                progressLevel: variables.progressLevel,
+                            };
+                            return { ...task, statuses: newStatuses };
+                        } else {
+                            // Create new status entry
+                            return {
+                                ...task,
+                                statuses: [...task.statuses, {
+                                    id: 'temp-' + Date.now(),
+                                    taskId: variables.taskId,
+                                    date: new Date(variables.date),
+                                    status: 'NONE' as const,
+                                    completedSubtasks: [],
+                                    dailySubtasks: [],
+                                    progressLevel: variables.progressLevel,
+                                }]
+                            };
+                        }
+                    }
+                    return task;
+                });
+            });
+
+            return { previousTasks, queryInput };
+        },
+        onError: (err, variables, context) => {
+            // Rollback on error
+            if (context?.previousTasks && context?.queryInput) {
+                utils.task.getTasks.setData(context.queryInput, context.previousTasks);
+            }
+        },
+        onSettled: () => {
+            // Invalidate ALL getTasks queries to update analytics views
+            utils.task.getTasks.invalidate();
+            // Also trigger the refetch callback
+            refetch();
+        },
+    });
+
+    return { updateSeconds, deleteTask, updateStatus, updateProgress };
 }
 
 /**
