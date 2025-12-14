@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { trpc } from "@/utils/trpc";
 import AddTask from "./components/AddTask";
@@ -9,7 +9,7 @@ import SubTabs from "./components/Navigation/SubTabs";
 import TaskListContainer from "./components/TaskList/TaskListContainer";
 import { getTaskCounts } from "@/lib/utils/filters";
 
-export default function Home() {
+function HomeContent() {
   const [currentMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') || 'today';
@@ -20,9 +20,11 @@ export default function Home() {
       year: currentMonth.getFullYear(),
     },
     {
-      staleTime: 1000, // 1 second - keep data fresh
-      refetchOnMount: true,
+      staleTime: 30000, // 30 seconds - balance between freshness and performance
+      gcTime: 5 * 60 * 1000, // 5 minutes - keep in cache longer
+      refetchOnMount: false, // Don't refetch if data is fresh
       refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     }
   );
 
@@ -49,7 +51,7 @@ export default function Home() {
 
       {/* Task List */}
       {isLoading ? (
-        <div className="max-w-5xl mx-auto px-4 space-y-6">
+        <div className="max-w-5xl mx-auto px-4 space-y-6 py-6">
           <TaskCardSkeleton />
           <TaskCardSkeleton />
           <TaskCardSkeleton />
@@ -69,5 +71,20 @@ export default function Home() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading your tasks...</p>
+        </div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

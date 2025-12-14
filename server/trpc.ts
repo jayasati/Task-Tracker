@@ -1,12 +1,35 @@
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 
-const t = initTRPC.create({
+// Define the context type
+interface Context {
+  userId: string | null;
+}
+
+const t = initTRPC.context<Context>().create({
   transformer: superjson,
 });
 
 export const router = t.router;
+
+// Public procedure (no auth required)
 export const publicProcedure = t.procedure;
+
+// Protected procedure (requires authentication)
+export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (!ctx.userId) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "You must be signed in to perform this action",
+    });
+  }
+  return next({
+    ctx: {
+      ...ctx,
+      userId: ctx.userId, // Now TypeScript knows userId is not null
+    },
+  });
+});
 
 /**
  * FILE: server/trpc.ts

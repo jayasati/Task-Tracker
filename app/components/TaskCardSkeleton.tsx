@@ -1,37 +1,38 @@
-
-
 export default function TaskCardSkeleton() {
     return (
-        <div className="box task animate-pulse">
-            {/* Header skeleton */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div style={{ flex: 1 }}>
-                    <div style={{ height: '28px', width: '60%', backgroundColor: '#e5e7eb', borderRadius: '4px', marginBottom: '8px' }}></div>
-                    <div style={{ height: '16px', width: '40%', backgroundColor: '#e5e7eb', borderRadius: '4px' }}></div>
+        <div className="bg-white rounded-lg shadow-sm p-3 mb-2 border border-gray-100 animate-fade-in">
+            {/* Main row: Title, Type, Buttons */}
+            <div className="flex items-center justify-between gap-3 mb-2">
+                {/* Left side: Title and badges */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="h-5 w-32 bg-gray-200 rounded skeleton-shimmer"></div>
+                    <div className="h-5 w-16 bg-gray-200 rounded skeleton-shimmer"></div>
+                    <div className="h-4 w-8 bg-gray-200 rounded skeleton-shimmer"></div>
                 </div>
-                <div style={{ height: '32px', width: '32px', backgroundColor: '#e5e7eb', borderRadius: '4px' }}></div>
-            </div>
 
-            {/* Subtasks skeleton */}
-            <div style={{ marginBottom: '16px' }}>
-                <div style={{ height: '14px', width: '80px', backgroundColor: '#e5e7eb', borderRadius: '4px', marginBottom: '8px' }}></div>
-                <div style={{ height: '20px', width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px' }}></div>
-            </div>
-
-            {/* Habit grid skeleton */}
-            <div style={{ marginTop: '16px' }}>
-                <div style={{ height: '16px', width: '200px', backgroundColor: '#e5e7eb', borderRadius: '4px', marginBottom: '12px' }}></div>
-                <div style={{ display: 'flex', gap: '10px', overflowX: 'hidden' }}>
-                    {Array.from({ length: 10 }).map((_, i) => (
-                        <div key={i} style={{ minWidth: '44px', height: '44px', backgroundColor: '#e5e7eb', borderRadius: '10px' }}></div>
-                    ))}
+                {/* Right side: Buttons */}
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="h-7 w-20 bg-gray-200 rounded skeleton-shimmer"></div>
+                    <div className="h-7 w-16 bg-gray-200 rounded skeleton-shimmer"></div>
                 </div>
             </div>
 
-            {/* Footer skeleton */}
-            <div style={{ marginTop: '16px', display: 'flex', gap: '16px' }}>
-                <div style={{ height: '16px', width: '100px', backgroundColor: '#e5e7eb', borderRadius: '4px' }}></div>
-                <div style={{ height: '16px', width: '100px', backgroundColor: '#e5e7eb', borderRadius: '4px' }}></div>
+            {/* Progress boxes skeleton */}
+            <div className="mt-2 flex gap-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-8 w-8 bg-gray-200 rounded skeleton-shimmer" style={{ animationDelay: `${i * 0.1}s` }}></div>
+                ))}
+            </div>
+
+            {/* Metadata row */}
+            <div className="flex items-center gap-4 mt-2">
+                <div className="h-4 w-24 bg-gray-200 rounded skeleton-shimmer"></div>
+                <div className="h-4 w-24 bg-gray-200 rounded skeleton-shimmer"></div>
+            </div>
+
+            {/* Subtasks skeleton (collapsed) */}
+            <div className="mt-2">
+                <div className="h-4 w-24 bg-gray-200 rounded skeleton-shimmer"></div>
             </div>
         </div>
     );

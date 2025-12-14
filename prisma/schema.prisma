@@ -16,6 +16,9 @@ model Task {
   logs     TimeLog[]
   statuses   TaskStatus[]
   
+  // User association - links task to Clerk user
+  userId   String   @default("") // Clerk user ID
+  
   // New fields for enhanced task tracking
   repeatMode String   @default("none") // none, daily, weekly, monthly, custom
   weekdays   Int[]    // 0-6 for Sun-Sat, used when repeatMode is custom or weekly
@@ -35,6 +38,10 @@ model Task {
   
   // Progress tracking (0-4 level system)
   progressLevel Int      @default(0) // 0=not attempted, 1=gray, 2=50%, 3=70%, 4=100%
+  
+  @@index([isArchived])
+  @@index([category])
+  @@index([userId])
 }
 
 model TimeLog {
@@ -44,6 +51,8 @@ model TimeLog {
   task      Task     @relation(fields: [taskId], references: [id])
   taskId    String
   @@unique([taskId, date])
+  @@index([date])
+  @@index([taskId])
 }
 
 model TaskStatus {
@@ -61,6 +70,8 @@ model TaskStatus {
   progressLevel Int @default(0) // 0=not attempted, 1=25%, 2=50%, 3=75%, 4=100%
 
   @@unique([taskId, date])
+  @@index([date])
+  @@index([taskId])
 }
 
 enum Status {

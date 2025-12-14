@@ -1,19 +1,41 @@
 import TaskCardSkeleton from "./components/TaskCardSkeleton";
+import MainTabs from "./components/Navigation/MainTabs";
 
 export default function Loading() {
     return (
-        <div className="max-w-5xl mx-auto py-12 px-4">
-            <h2>Task + Time Tracker</h2>
+        <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-blue-50 animate-fade-in">
+            {/* Main Navigation */}
+            <MainTabs />
 
-            {/* AddTask skeleton */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 mb-10 border border-gray-100/50 animate-pulse">
-                <div style={{ height: '48px', width: '100%', backgroundColor: '#e5e7eb', borderRadius: '8px' }}></div>
+            {/* Sub Navigation Skeleton */}
+            <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
+                <div className="max-w-7xl mx-auto">
+                    <div className="flex gap-3 overflow-x-auto px-6 py-3">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div 
+                                key={i} 
+                                className="h-8 w-20 bg-gray-200 rounded-full skeleton-shimmer"
+                                style={{ animationDelay: `${i * 0.1}s` }}
+                            ></div>
+                        ))}
+                    </div>
+                </div>
             </div>
 
-            {/* Task cards skeleton */}
-            <TaskCardSkeleton />
-            <TaskCardSkeleton />
-            <TaskCardSkeleton />
+            {/* Header */}
+            <div className="max-w-5xl mx-auto px-4 py-6 animate-fade-in">
+                <div className="h-10 w-64 bg-gray-200 rounded mx-auto mb-2 skeleton-shimmer"></div>
+                <div className="h-5 w-96 bg-gray-200 rounded mx-auto skeleton-shimmer mt-2"></div>
+            </div>
+
+            {/* Task List Skeleton */}
+            <div className="max-w-5xl mx-auto px-4 space-y-6 py-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} style={{ animationDelay: `${i * 0.15}s` }} className="animate-fade-in">
+                        <TaskCardSkeleton />
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
