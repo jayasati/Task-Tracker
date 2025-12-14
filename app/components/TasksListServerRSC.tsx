@@ -1,5 +1,6 @@
 import { getCurrentMonthTasks } from "@/server/queries/tasks";
 import TaskCard from "./TaskCard";
+import { auth } from "@clerk/nextjs/server";
 
 // Force dynamic rendering for this component
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,15 @@ export const dynamic = 'force-dynamic';
  * This enables server-side rendering and streaming
  */
 export default async function TasksListServerRSC() {
-    const tasks = await getCurrentMonthTasks();
+    const { userId } = await auth();
+    if (!userId) {
+        return (
+            <div className="box" style={{ textAlign: 'center', padding: '40px' }}>
+                <p style={{ color: '#64748b', fontSize: '18px' }}>Please sign in to view your tasks.</p>
+            </div>
+        );
+    }
+    const tasks = await getCurrentMonthTasks(userId);
 
     // Get current month on server
     const now = new Date();

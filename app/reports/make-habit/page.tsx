@@ -1,9 +1,18 @@
 import { getCurrentMonthTasks } from '@/server/queries/tasks';
 import Link from 'next/link';
 import { CategoryHabitList } from '@/app/components/reports/CategoryHabitList';
+import { auth } from '@clerk/nextjs/server';
 
 export default async function MakeHabitReportsPage() {
-    const tasks = await getCurrentMonthTasks();
+    const { userId } = await auth();
+    if (!userId) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-green-50 to-emerald-50 flex items-center justify-center">
+                <p className="text-gray-600 text-lg">Please sign in to view your reports.</p>
+            </div>
+        );
+    }
+    const tasks = await getCurrentMonthTasks(userId);
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-green-50 to-emerald-50">

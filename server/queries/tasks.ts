@@ -5,8 +5,15 @@ import { Task } from "@/types/task";
 /**
  * Server-side query to fetch tasks with optimized data loading
  * Fetches fresh data on every request to ensure UI stays in sync
+ * @param month - Month number (0-11)
+ * @param year - Year number
+ * @param userId - Clerk user ID to filter tasks by user
  */
-export async function getTasksForMonth(month: number, year: number): Promise<Task[]> {
+export async function getTasksForMonth(month: number, year: number, userId: string): Promise<Task[]> {
+    if (!userId) {
+        return []; // Return empty array if no user ID provided
+    }
+
     const startDate = new Date(year, month, 1);
     const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
@@ -14,7 +21,61 @@ export async function getTasksForMonth(month: number, year: number): Promise<Tas
     const statusStartDate = new Date(startDate);
     statusStartDate.setDate(statusStartDate.getDate() - 7);
 
+    // Optimize: Only fetch tasks that are relevant to this month or have logs/statuses in this range
+    // This filters at database level instead of fetching all tasks
+    // IMPORTANT: Filter by userId to ensure users only see their own tasks
     const tasks = await prisma.task.findMany({
+        where: {
+            userId: userId, // Filter by current user
+            OR: [
+                // Tasks that have logs in this month
+                {
+                    logs: {
+                        some: {
+                            date: {
+                                gte: startDate,
+                                lte: endDate,
+                            }
+                        }
+                    }
+                },
+                // Tasks that have statuses in the range (including buffer)
+                {
+                    statuses: {
+                        some: {
+                            date: {
+                                gte: statusStartDate,
+                                lte: endDate,
+                            }
+                        }
+                    }
+                },
+                // Tasks that are active and might be relevant (not archived, within date range or no end date)
+                {
+                    isArchived: false,
+                    OR: [
+                        {
+                            startDate: {
+                                lte: endDate,
+                            },
+                            endDate: {
+                                gte: startDate,
+                            }
+                        },
+                        {
+                            startDate: null,
+                            endDate: null,
+                        },
+                        {
+                            startDate: {
+                                lte: endDate,
+                            },
+                            endDate: null,
+                        }
+                    ]
+                }
+            ]
+        },
         select: {
             id: true,
             title: true,
@@ -92,10 +153,11 @@ export async function getTasksForMonth(month: number, year: number): Promise<Tas
 
 /**
  * Get current month's tasks (convenience function)
+ * @param userId - Clerk user ID to filter tasks by user
  */
-export async function getCurrentMonthTasks() {
+export async function getCurrentMonthTasks(userId: string) {
     const now = new Date();
-    return getTasksForMonth(now.getMonth(), now.getFullYear());
+    return getTasksForMonth(now.getMonth(), now.getFullYear(), userId);
 }
 
 /**

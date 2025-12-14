@@ -178,14 +178,39 @@ function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
 }
 
 // Memoize to prevent unnecessary re-renders
+// Optimized comparison function - avoids expensive JSON.stringify
 export default memo(TaskCard, (prevProps, nextProps) => {
-  return (
-    prevProps.task.id === nextProps.task.id &&
-    prevProps.task.totalSeconds === nextProps.task.totalSeconds &&
-    prevProps.task.progressLevel === nextProps.task.progressLevel &&
-    JSON.stringify(prevProps.task.statuses) === JSON.stringify(nextProps.task.statuses) &&
-    JSON.stringify(prevProps.task.subtasks) === JSON.stringify(nextProps.task.subtasks)
-  );
+  // Quick reference equality check first
+  if (prevProps.task === nextProps.task && prevProps.currentMonth === nextProps.currentMonth) {
+    return true;
+  }
+
+  // Compare individual fields
+  if (prevProps.task.id !== nextProps.task.id) return false;
+  if (prevProps.task.totalSeconds !== nextProps.task.totalSeconds) return false;
+  if (prevProps.task.progressLevel !== nextProps.task.progressLevel) return false;
+  
+  // Compare statuses array length and key fields
+  const prevStatuses = prevProps.task.statuses || [];
+  const nextStatuses = nextProps.task.statuses || [];
+  if (prevStatuses.length !== nextStatuses.length) return false;
+  
+  // Compare subtasks array
+  const prevSubtasks = prevProps.task.subtasks || [];
+  const nextSubtasks = nextProps.task.subtasks || [];
+  if (prevSubtasks.length !== nextSubtasks.length) return false;
+  if (prevSubtasks.join(',') !== nextSubtasks.join(',')) return false;
+
+  // For statuses, compare only the relevant fields we care about
+  // Only check today's status which is what we use in the component
+  const today = new Date().toISOString().split('T')[0];
+  const prevTodayStatus = prevStatuses.find(s => new Date(s.date).toISOString().split('T')[0] === today);
+  const nextTodayStatus = nextStatuses.find(s => new Date(s.date).toISOString().split('T')[0] === today);
+  
+  if (prevTodayStatus?.progressLevel !== nextTodayStatus?.progressLevel) return false;
+  if (prevTodayStatus?.status !== nextTodayStatus?.status) return false;
+  
+  return true;
 });
 
 /**

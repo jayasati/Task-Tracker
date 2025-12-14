@@ -1,4 +1,4 @@
-import { router, publicProcedure } from "../trpc";
+import { router, protectedProcedure } from "../trpc";
 import { prisma } from "../db";
 import { z } from "zod";
 
@@ -6,12 +6,16 @@ import { z } from "zod";
 
 export const taskRouter = router({
   //--------------------------------------------------------
-  getTasks: publicProcedure
+  getTasks: protectedProcedure
     .input(z.object({
       month: z.number().optional(),
       year: z.number().optional()
     }).optional())
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      // Only fetch tasks for the current user
+      if (!ctx.userId) {
+        return [];
+      }
 
       const now = new Date();
       const month = input?.month ?? now.getMonth();
@@ -26,7 +30,61 @@ export const taskRouter = router({
       const statusStartDate = new Date(startDate);
       statusStartDate.setDate(statusStartDate.getDate() - 7);
 
+      // Optimize: Only fetch tasks that are relevant to this month or have logs/statuses in this range
+      // This filters at database level instead of fetching all tasks
+      // IMPORTANT: Filter by userId to ensure users only see their own tasks
       const tasks = await prisma.task.findMany({
+        where: {
+          userId: ctx.userId, // Filter by current user
+          OR: [
+            // Tasks that have logs in this month
+            {
+              logs: {
+                some: {
+                  date: {
+                    gte: startDate,
+                    lte: endDate,
+                  }
+                }
+              }
+            },
+            // Tasks that have statuses in the range (including buffer)
+            {
+              statuses: {
+                some: {
+                  date: {
+                    gte: statusStartDate,
+                    lte: endDate,
+                  }
+                }
+              }
+            },
+            // Tasks that are active and might be relevant (not archived, within date range or no end date)
+            {
+              isArchived: false,
+              OR: [
+                {
+                  startDate: {
+                    lte: endDate,
+                  },
+                  endDate: {
+                    gte: startDate,
+                  }
+                },
+                {
+                  startDate: null,
+                  endDate: null,
+                },
+                {
+                  startDate: {
+                    lte: endDate,
+                  },
+                  endDate: null,
+                }
+              ]
+            }
+          ]
+        },
         select: {
           id: true,
           title: true,
@@ -103,7 +161,7 @@ export const taskRouter = router({
       }));
     }),
   //---------------------------------------------------------------------
-  addTask: publicProcedure
+  addTask: protectedProcedure
     .input(z.object({
       title: z.string(),
       type: z.enum(["task", "amount", "time"]).default("task"),
@@ -118,10 +176,14 @@ export const taskRouter = router({
       subtasks: z.array(z.string()).default([]),
       notes: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated to create tasks");
+      }
       // @ts-ignore prisma client types may be stale until generated
       return prisma.task.create({
         data: {
+          userId: ctx.userId, // Associate task with current user
           title: input.title,
           type: input.type,
           repeatMode: input.repeatMode,
@@ -138,9 +200,22 @@ export const taskRouter = router({
       });
     }),
   //----------------------------------------------------------------------
-  updateSeconds: publicProcedure
+  updateSeconds: protectedProcedure
     .input(z.object({ taskId: z.string(), seconds: z.number(), date: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+      
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId, userId: ctx.userId },
+      });
+      
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
       const today = new Date(input.date);
       // today.setHours(0, 0, 0, 0); 
 
@@ -151,7 +226,7 @@ export const taskRouter = router({
       });
     }),
   //------------------------------------------------
-  updateStatus: publicProcedure
+  updateStatus: protectedProcedure
     .input(z.object({
       taskId: z.string(),
       date: z.string(),
@@ -159,7 +234,20 @@ export const taskRouter = router({
       completedSubtasks: z.array(z.string()).optional(),
       dailySubtasks: z.array(z.string()).optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+      
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId, userId: ctx.userId },
+      });
+      
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
       const d = new Date(input.date);
       // d.setHours(0, 0, 0, 0); 
       return prisma.taskStatus.upsert({
@@ -184,9 +272,22 @@ export const taskRouter = router({
       });
     }),
   //------------------------------------------------
-  deleteTask: publicProcedure
+  deleteTask: protectedProcedure
     .input(z.object({ taskId: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+      
+      // Verify the task belongs to the current user before deleting
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId, userId: ctx.userId },
+      });
+      
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
       // Some drivers (e.g. Neon HTTP) do not support interactive tx well; do sequential deletes.
       await prisma.timeLog.deleteMany({ where: { taskId: input.taskId } });
       await prisma.taskStatus.deleteMany({ where: { taskId: input.taskId } });
@@ -194,12 +295,25 @@ export const taskRouter = router({
       return { success: !!deleted };
     }),
   //------------------------------------------------
-  updateTask: publicProcedure
+  updateTask: protectedProcedure
     .input(z.object({
       id: z.string(),
       subtasks: z.array(z.string()).optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+      
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.id, userId: ctx.userId },
+      });
+      
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
       return prisma.task.update({
         where: { id: input.id },
         data: {
@@ -208,13 +322,26 @@ export const taskRouter = router({
       });
     }),
   //------------------------------------------------
-  updateProgress: publicProcedure
+  updateProgress: protectedProcedure
     .input(z.object({
       taskId: z.string(),
       date: z.string(),
       progressLevel: z.number().min(0).max(4)
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+      
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId, userId: ctx.userId },
+      });
+      
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
       const d = new Date(input.date);
 
       // Store progress per-day in TaskStatus, not globally on Task
