@@ -1,418 +1,134 @@
-# Task Tracker - Codebase Roadmap
+# Task Tracker - Project Roadmap & Architecture Guide
 
-## 🗺️ How to Navigate This Codebase
+## 🗺️ Navigation Guide
 
-This guide will help you understand the architecture and know where to start reading the code.
+This document provides a comprehensive overview of the Task Tracker codebase, helping you understand how the project is structured, how data flows, and where to find key logic.
 
 ---
 
 ## 📚 Reading Order for New Developers
 
-<!-- ### 1. Start Here: Understanding the Data Model
-**File:** `prisma/schema.prisma`  
-**Why:** Understand the database structure first - Task, TimeLog, TaskStatus models -->
+To get up to speed quickly, we recommend reading the files in this specific order:
 
-<!-- ### 2. Type Definitions
-**File:** `types/task.ts`  
-**Why:** See TypeScript interfaces that match the database schema -->
-<!-- 
-### 3. Core App Structure
-Read in this order:
-1. `app/layout.tsx` - Root layout with providers
-2. `app/providers.tsx` - TRPC and React Query setup
-3. `app/page.tsx` - Main page with SSR and Suspense
-4. `app/loading.tsx` - Loading states -->
+### 1. The Data Foundation 🏗️
+Start here to understand what we are actually tracking.
+- **`prisma/schema.prisma`**: The single source of truth for our data model. Key models: `Task`, `TimeLog`, `TaskStatus`, `TimerSession`. Note usage of `env("DATABASE_URL")` in `prisma.config.ts`.
+- **`types/task.ts`**: TypeScript interfaces that mirror and extend the database schema for the frontend.
 
-<!-- ### 4. Server-Side Architecture
-1. `server/db.ts` - Prisma client setup
-2. `server/trpc.ts` - TRPC initialization
-3. `server/index.ts` - Main router
-4. `server/routers/task.ts` - All API endpoints ⭐ **CRITICAL**
-5. `server/queries/tasks.ts` - Server component queries -->
+### 2. The Core Application Entry 🚪
+- **`app/layout.tsx`**: The root layout wrapping the app with Providers (Clerk, TRPC).
+- **`app/page.tsx`**: The main entry point. Notice how it uses `Suspense` and server components.
+- **`server/routers/task.ts`**: The backend brain. This contains all `trpc` procedures (API endpoints) for tasks, timers, and habits.
 
-### 5. Client-Side Data Fetching
-1. `utils/trpc.ts` - TRPC React client
-2. `app/components/TasksListServerRSC.tsx` - Server component example
+### 3. Key UI Components 🖼️
+- **`app/components/TaskCard.tsx`**: The most complex component. Handles display, timer logic, subtasks, and progress updates.
+- **`app/components/HabitGrid.tsx`**: Visualizes habit progress over time.
+- **`app/components/EditTaskModal.tsx`**: Logic for updating existing tasks.
+- **`app/components/SubtaskModal.tsx`**: Handles daily subtask management.
 
-### 6. Utilities (Read These Early!)
-1. `lib/utils/date.ts` - Date formatting (used everywhere)
-2. `lib/utils/status.ts` - Status transitions
-3. `lib/utils/time.ts` - Time formatting
-4. `lib/utils/memo.ts` - Performance utilities
-
-### 7. Custom Hooks (Business Logic)
-Read in this order:
-1. `hooks/useAddTaskForm.ts` - Creating tasks
-2. `hooks/useTaskActions.ts` - Task mutations
-3. `hooks/useTaskTimer.ts` - Timer logic
-4. `hooks/useHabitGrid.ts` - Habit grid logic ⭐ **COMPLEX**
-5. `hooks/useTaskSubtasks.ts` - Subtask management
-6. `hooks/useSubtaskModal.ts` - Modal logic
-
-### 8. Main Components
-1. `app/components/AddTask.tsx` - Task creation form
-2. `app/components/TaskCard.tsx` - Main task display ⭐ **CRITICAL**
-3. `app/components/HabitGrid.tsx` - Habit tracking grid
-4. `app/components/SubtaskModal.tsx` - Subtask modal
+### 4. Critical Business Logic (Hooks) 🧠
+- **`hooks/useTaskTimer.ts`**: Logic for the stopwatch functionality.
+- **`hooks/useHabitGrid.ts`**: Complex logic for mapping daily statuses to the grid.
+- **`hooks/useTaskSubtasks.ts`**: Handles the "rollover" logic for uncompleted subtasks.
+- **`hooks/useMultiSelect.ts`**: Manages selection state for bulk actions.
 
 ---
 
 ## 🏗️ Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         USER BROWSER                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   app/       │  │  components/ │  │    hooks/    │      │
-│  │   page.tsx   │──│  TaskCard    │──│ useHabitGrid │      │
-│  │  (SSR)       │  │  AddTask     │  │ useTaskTimer │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-│         │                  │                  │              │
-│         └──────────────────┴──────────────────┘              │
-│                            │                                  │
-│                     ┌──────▼──────┐                          │
-│                     │  utils/     │                          │
-│                     │  trpc.ts    │                          │
-│                     │ (TRPC Client)│                         │
-│                     └──────┬──────┘                          │
-└────────────────────────────┼──────────────────────────────────┘
-                             │ HTTP (tRPC)
-┌────────────────────────────┼──────────────────────────────────┐
-│                     ┌──────▼──────┐                          │
-│                     │ app/api/    │                          │
-│                     │ trpc/route  │                          │
-│                     └──────┬──────┘                          │
-│                            │                                  │
-│                     ┌──────▼──────┐                          │
-│                     │  server/    │                          │
-│                     │  index.ts   │                          │
-│                     │ (AppRouter) │                          │
-│                     └──────┬──────┘                          │
-│                            │                                  │
-│              ┌─────────────┴─────────────┐                   │
-│              │                           │                   │
-│       ┌──────▼──────┐           ┌───────▼────────┐          │
-│       │  server/    │           │   server/      │          │
-│       │  routers/   │           │   queries/     │          │
-│       │  task.ts    │           │   tasks.ts     │          │
-│       │ (Mutations) │           │  (SSR Queries) │          │
-│       └──────┬──────┘           └───────┬────────┘          │
-│              │                           │                   │
-│              └─────────────┬─────────────┘                   │
-│                            │                                  │
-│                     ┌──────▼──────┐                          │
-│                     │  server/    │                          │
-│                     │   db.ts     │                          │
-│                     │  (Prisma)   │                          │
-│                     └──────┬──────┘                          │
-│                            │                                  │
-│                     ┌──────▼──────┐                          │
-│                     │  DATABASE   │                          │
-│                     │   (Neon)    │                          │
-│                     └─────────────┘                          │
-│                      NEXT.JS SERVER                          │
-└──────────────────────────────────────────────────────────────┘
-```
+The project follows a modern **T3 Stack-like** architecture (Next.js + tRPC + Prisma + Tailwind).
+
+### High-Level Stack
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Database**: PostgreSQL (Neon) accessed via Prisma ORM
+- **API Layer**: tRPC (Type-safe APIs)
+- **Styling**: Tailwind CSS 4
+- **Auth**: Clerk
+
+### 🔄 Data Flow Patterns
+
+#### 1. Server-Side Rendering (Initial Fetch)
+**Flow**: `Page` → `Server Component` → `Server Query` → `Prisma` → `DB`
+- The `app/page.tsx` uses **Server Components** (like `TasksListServerRSC`) to fetch data directly from the DB using helper functions in `server/queries/`.
+- **Benefit**: Fast initial load, SEO friendly.
+
+#### 2. Client-Side Interactions (Mutations)
+**Flow**: `UI Component` → `Custom Hook` → `tRPC Client` → `API Route` → `Server Router` → `Prisma` → `DB`
+- Example: Clicking "Start Timer" triggers `useTaskTimer`, which calls `trpc.task.updateSeconds.mutate()`.
+- **Benefit**: Type safety from frontend to backend.
+
+#### 3. Real-Time-ish Updates
+- After a mutation (e.g., adding a task), we use `router.refresh()` to re-run Server Components and fetch the latest data without a full page reload.
 
 ---
 
-## 🔄 Data Flow Patterns
-
-### Pattern 1: Server-Side Rendering (Initial Load)
-```
-User visits page
-    ↓
-app/page.tsx (Server Component)
-    ↓
-TasksListServerRSC.tsx
-    ↓
-server/queries/tasks.ts → getCurrentMonthTasks()
-    ↓
-Prisma → Database
-    ↓
-HTML rendered on server
-    ↓
-Sent to browser (fast!)
-```
-
-### Pattern 2: Client-Side Mutation (Add Task)
-```
-User fills form
-    ↓
-AddTask.tsx → useAddTaskForm hook
-    ↓
-submit() called
-    ↓
-trpc.task.addTask.mutate()
-    ↓
-HTTP request to /api/trpc
-    ↓
-server/routers/task.ts → addTask procedure
-    ↓
-Prisma → Database
-    ↓
-onSuccess: router.refresh()
-    ↓
-Server re-fetches data
-    ↓
-UI updates
-```
-
-### Pattern 3: Timer Workflow
-```
-User clicks "Start"
-    ↓
-TaskCard.tsx → useTaskTimer hook
-    ↓
-setInterval starts (1 second)
-    ↓
-localSeconds increments
-    ↓
-User clicks "Stop"
-    ↓
-onStop callback with gained seconds
-    ↓
-trpc.task.updateSeconds.mutate()
-    ↓
-Creates TimeLog entry in database
-    ↓
-router.refresh() → UI updates
-```
-
-### Pattern 4: Habit Grid Status Toggle
-```
-User clicks day box
-    ↓
-HabitGrid.tsx → useHabitGrid hook
-    ↓
-toggle(day) called
-    ↓
-If has subtasks: opens SubtaskModal
-If no subtasks: cycles status (NONE → FAIL → HALF → SUCCESS)
-    ↓
-trpc.task.updateStatus.mutate()
-    ↓
-Updates TaskStatus in database
-    ↓
-router.refresh() → UI updates
-```
-
----
-
-## 📁 Directory Structure
+## 📂 Directory Structure Explained
 
 ```
 task-tracker/
-├── app/                          # Next.js App Router
-│   ├── page.tsx                  # Main page (SSR)
-│   ├── layout.tsx                # Root layout
-│   ├── providers.tsx             # Client providers
-│   ├── loading.tsx               # Loading UI
-│   ├── globals.css               # Global styles
-│   ├── api/
-│   │   └── trpc/[trpc]/route.ts  # TRPC API handler
-│   └── components/
-│       ├── TaskCard.tsx          # ⭐ Main task component
-│       ├── AddTask.tsx           # Task creation form
-│       ├── HabitGrid.tsx         # Habit tracking grid
-│       ├── SubtaskModal.tsx      # Subtask modal
-│       ├── TimerDisplay.tsx      # Timer UI
-│       ├── TaskCardSkeleton.tsx  # Loading skeleton
-│       ├── TasksListServerRSC.tsx # Server component
-│       ├── tasks/                # Task sub-components
-│       └── add-task/             # Form sub-components
-│
-├── hooks/                        # Custom React hooks
-│   ├── useTaskActions.ts         # Mutations
-│   ├── useAddTaskForm.ts         # Form logic
-│   ├── useHabitGrid.ts           # ⭐ Complex grid logic
-│   ├── useTaskTimer.ts           # Timer logic
-│   ├── useTaskSubtasks.ts        # Subtask management
-│   └── useSubtaskModal.ts        # Modal logic
-│
+├── app/                        # Next.js App Router (Pages & Layouts)
+│   ├── api/trpc/               # tRPC API Route Handler
+│   ├── components/             # React Components
+│   │   ├── tasks/              # Small styling components (Badges, etc.)
+│   │   ├── reports/            # Analytics/Report components
+│   │   └── ...
+│   ├── reports/                # Reports Page Route
+│   └── ...
+├── hooks/                      # Custom React Hooks (Business Logic)
 ├── lib/
-│   └── utils/                    # Utility functions
-│       ├── date.ts               # ⭐ Date utilities (used everywhere)
-│       ├── status.ts             # Status transitions
-│       ├── time.ts               # Time formatting
-│       └── memo.ts               # Performance utilities
-│
-├── server/                       # Backend code
-│   ├── index.ts                  # Main router
-│   ├── trpc.ts                   # TRPC setup
-│   ├── db.ts                     # Prisma client
-│   ├── routers/
-│   │   └── task.ts               # ⭐ All API endpoints
-│   └── queries/
-│       └── tasks.ts              # Server component queries
-│
-├── types/
-│   └── task.ts                   # TypeScript types
-│
-├── utils/
-│   └── trpc.ts                   # TRPC React client
-│
-├── prisma/
-│   └── schema.prisma             # ⭐ Database schema
-│
-└── next.config.ts                # Next.js configuration
+│   └── utils/                  # Helper functions (Date formatting, Status logic)
+├── prisma/                     # Database Schema & Migrations
+│   ├── migrations/             # SQL Migration history
+│   └── schema.prisma           # Data Model Definition
+├── server/                     # Backend Logic
+│   ├── routers/                # tRPC Routers (API Endpoints)
+│   ├── queries/                # Direct DB queries for Server Components
+│   └── ...
+├── types/                      # Shared TypeScript Interfaces
+└── ...
 ```
 
 ---
 
-## 🎯 Key Concepts
+## 🧩 Key Features & Implementation Details
 
-### 1. Server vs Client Components
-- **Server Components**: `TasksListServerRSC.tsx` - No "use client", can use `await`
-- **Client Components**: `TaskCard.tsx`, `AddTask.tsx` - Have "use client", use hooks
+### 1. Smart Progress Boxes (`HabitGrid`, `StatusBadge`)
+- **Concept**: A 4-level progress system (None -> Fail -> Half -> Success).
+- **Implementation**: Stored as `progressLevel` in `TaskStatus`. Use `lib/utils/status.ts` for transition logic.
 
-### 2. Data Fetching Strategies
-- **Server Components**: Use `server/queries/tasks.ts` directly
-- **Client Components**: Use TRPC hooks (`trpc.task.getTasks.useQuery()`)
-- **Mutations**: Always use TRPC (`trpc.task.addTask.useMutation()`)
+### 2. Time Tracking (`useTaskTimer`)
+- **Concept**: Track time spent on tasks vs estimated time.
+- **Implementation**: `TimeLog` model stores seconds per day. The frontend uses a local interval for smooth UI, syncing with the server on stop/pause.
 
-### 3. Revalidation Pattern
-- After mutations, call `router.refresh()` to revalidate server components
-- This triggers re-fetch of server component data
-- UI updates automatically
+### 3. Subtask Management (`useTaskSubtasks`)
+- **Concept**: Daily subtasks with rollover.
+- **Implementation**:
+    - `completedSubtasks`: Array of strings for *today*.
+    - `dailySubtasks`: Snapshot of *all* subtasks for that day (freezes history).
+    - **Rollover**: Logic checks previous day's uncompleted items and adds them to today's list.
 
-### 4. Subtask Rollover Logic
-- Uncompleted subtasks from previous day carry forward
-- Once a day has status, its `dailySubtasks` are "frozen"
-- See `hooks/useTaskSubtasks.ts` for implementation
-
-### 5. Memoization for Performance
-- `useHabitGrid` uses `useMemo` and `useCallback` extensively
-- Converts arrays to Maps for O(1) lookups
-- Prevents unnecessary re-renders
+### 4. "Smart" Month View
+- **Concept**: Filter tasks by category types (Task, Make Habit, Break Habit, Professional).
+- **Implementation**: `server/queries/tasks.ts` filters based on the `tab` query param.
 
 ---
 
-## 🔍 Common Tasks & Where to Look
+## 🛠️ Common Tasks
 
-| Task | Files to Check |
-|------|----------------|
-| Add new task field | `prisma/schema.prisma`, `types/task.ts`, `server/routers/task.ts`, `hooks/useAddTaskForm.ts` |
-| Change status colors | `lib/utils/status.ts`, `app/components/tasks/HabitDayBox.tsx` |
-| Modify timer logic | `hooks/useTaskTimer.ts`, `server/routers/task.ts` (updateSeconds) |
-| Add new API endpoint | `server/routers/task.ts` |
-| Change date formatting | `lib/utils/date.ts` |
-| Modify subtask behavior | `hooks/useTaskSubtasks.ts`, `hooks/useSubtaskModal.ts` |
-| Update UI styles | `app/globals.css`, individual component files |
-| Change caching strategy | `server/queries/tasks.ts`, `app/providers.tsx` |
+### How to add a new field to Task?
+1. Edit `prisma/schema.prisma` to add the field.
+2. Run `npx prisma migrate dev` to update DB and generic client.
+3. Update `types/task.ts` to reflect the change.
+4. Update `server/routers/task.ts` (create/update procedures).
+5. Add the input field in `app/components/AddTask.tsx` or `EditTaskModal.tsx`.
 
----
-
-## 🐛 Debugging Tips
-
-### 1. Check TRPC Mutations
-- Open browser DevTools → Network tab
-- Look for `/api/trpc` requests
-- Check request/response payloads
-
-### 2. Server Component Issues
-- Check terminal output (server logs)
-- Look for errors during `getTask sForMonth()`
-
-### 3. State Not Updating
-- Verify `router.refresh()` is called after mutations
-- Check if component is memoized (`React.memo`)
-- Look for missing dependencies in `useMemo`/`useCallback`
-
-### 4. Subtask Issues
-- Check `dailySubtasks` vs `completedSubtasks` in database
-- Verify rollover logic in `useTaskSubtasks.ts`
-- Look at `getPrevDayUnfinished` function
+### How to debug a database issue?
+- Check `server/db.ts` for connection logic.
+- Ensure `.env` has the correct `DATABASE_URL`.
+- Use `npx prisma studio` to visually inspect data.
 
 ---
 
-## 📝 Code Conventions
-
-### File Naming
-- Components: PascalCase (`TaskCard.tsx`)
-- Hooks: camelCase with `use` prefix (`useTaskTimer.ts`)
-- Utilities: camelCase (`date.ts`)
-- Types: camelCase (`task.ts`)
-
-### Import Order
-1. External packages (react, next, etc.)
-2. Internal utilities (@/utils, @/lib)
-3. Types (@/types)
-4. Components (@/components)
-5. Hooks (@/hooks)
-6. Styles
-
-### Component Structure
-```typescript
-"use client"; // If client component
-
-// Imports
-import { ... } from "...";
-
-// Types (if needed)
-type Props = { ... };
-
-// Component
-export default function Component({ props }: Props) {
-  // Hooks
-  // Event handlers
-  // Render
-}
-
-// Documentation comment at end
-/**
- * FILE: ...
- * PURPOSE: ...
- * ...
- */
-```
-
----
-
-## 🚀 Quick Start Checklist
-
-- [ ] Read `prisma/schema.prisma` to understand data model
-- [ ] Read `types/task.ts` for TypeScript types
-- [ ] Understand `server/routers/task.ts` API endpoints
-- [ ] Review `lib/utils/date.ts` and `lib/utils/status.ts`
-- [ ] Study `hooks/useHabitGrid.ts` for complex logic example
-- [ ] Look at `app/components/TaskCard.tsx` for component structure
-- [ ] Trace a mutation from UI → Hook → TRPC → Database
-
----
-
-## 📚 Additional Resources
-
-- **Next.js 16 Docs**: https://nextjs.org/docs
-- **TRPC Docs**: https://trpc.io/docs
-- **Prisma Docs**: https://www.prisma.io/docs
-- **React Query Docs**: https://tanstack.com/query/latest
-
----
-
-## 🎓 Learning Path
-
-### Beginner
-1. Understand the database schema
-2. Learn how TRPC connects client to server
-3. Study one simple hook (useTaskTimer)
-4. Modify a simple component (TimerDisplay)
-
-### Intermediate
-1. Add a new field to tasks
-2. Create a new API endpoint
-3. Implement a new hook
-4. Optimize a component with memoization
-
-### Advanced
-1. Implement a new feature end-to-end
-2. Optimize database queries
-3. Add caching strategy
-4. Implement real-time updates
-
----
-
-**Last Updated**: 2025-12-12  
-**Codebase Version**: Next.js 16 with TRPC and Prisma
+**Last Updated**: 2025-12-15 
+**Version**: Next.js 16 + Prisma 7

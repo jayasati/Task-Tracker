@@ -188,20 +188,69 @@ export function aggregateByCategory(tasks: Task[], category: string): DailyProgr
         ? tasks.filter(t => isProfessionalCategory(t.category))
         : tasks.filter(t => t.category === category);
 
-    // Aggregate all statuses from all tasks
+    // Aggregate all statuses and timer sessions from all tasks
     for (const task of categoryTasks) {
+        // 1. Process Statuses
         for (const status of task.statuses) {
             const dateKey = new Date(status.date).toISOString().split('T')[0];
+            let level = status.progressLevel;
+
+            // For amount/both habits, calculate level from completed subtasks if progressLevel is 0
+            if (task.habitType === 'amount' || task.habitType === 'both') {
+                const required = task.requiredAmount ?? task.subtasks?.length ?? 0;
+                if (required > 0 && status.completedSubtasks && status.completedSubtasks.length > 0) {
+                    const ratio = status.completedSubtasks.length / required;
+                    let calculatedLevel = 0;
+                    if (ratio >= 1) calculatedLevel = 4;
+                    else if (ratio >= 0.75) calculatedLevel = 3;
+                    else if (ratio >= 0.5) calculatedLevel = 2;
+                    else if (ratio > 0) calculatedLevel = 1;
+
+                    level = Math.max(level, calculatedLevel);
+                }
+            }
+
             const existing = progressMap.get(dateKey);
 
             // If multiple tasks on same day, take the highest progress level
-            if (!existing || status.progressLevel > existing.progressLevel) {
+            if (!existing || level > existing.progressLevel) {
                 progressMap.set(dateKey, {
                     date: new Date(status.date),
-                    progressLevel: status.progressLevel,
+                    progressLevel: level,
                     taskId: task.id,
                     taskTitle: task.title
                 });
+            }
+        }
+
+        // 2. Process Timer Sessions
+        if (task.timerSessions && (task.habitType === 'time' || task.habitType === 'both')) {
+            const requiredSeconds = (task.requiredMinutes || 60) * 60;
+            if (requiredSeconds > 0) {
+                const sessionsByDate = new Map<string, number>();
+                for (const session of task.timerSessions) {
+                    const key = new Date(session.date).toISOString().split('T')[0];
+                    sessionsByDate.set(key, (sessionsByDate.get(key) || 0) + session.seconds);
+                }
+
+                for (const [key, seconds] of sessionsByDate.entries()) {
+                    let level = 0;
+                    const ratio = seconds / requiredSeconds;
+                    if (ratio >= 1) level = 4;
+                    else if (ratio >= 0.75) level = 3;
+                    else if (ratio >= 0.5) level = 2;
+                    else if (ratio > 0) level = 1;
+
+                    const existing = progressMap.get(key);
+                    if (!existing || level > existing.progressLevel) {
+                        progressMap.set(key, {
+                            date: new Date(key),
+                            progressLevel: level,
+                            taskId: task.id,
+                            taskTitle: task.title
+                        });
+                    }
+                }
             }
         }
     }
@@ -214,19 +263,72 @@ export function aggregateByCategory(tasks: Task[], category: string): DailyProgr
  * Used for individual habit analytics pages
  */
 export function aggregateSingleHabit(task: Task): DailyProgress[] {
-    const progressData: DailyProgress[] = [];
+    const progressMap = new Map<string, DailyProgress>();
 
-    // Collect all statuses from this single task
+    // 1. Process Statuses
     for (const status of task.statuses) {
-        progressData.push({
+        const key = new Date(status.date).toISOString().split('T')[0];
+        let level = status.progressLevel;
+
+        // For amount/both habits, calculate level from completed subtasks if progressLevel is 0
+        if (task.habitType === 'amount' || task.habitType === 'both') {
+            const required = task.requiredAmount ?? task.subtasks?.length ?? 0;
+            if (required > 0 && status.completedSubtasks && status.completedSubtasks.length > 0) {
+                const ratio = status.completedSubtasks.length / required;
+                let calculatedLevel = 0;
+                if (ratio >= 1) calculatedLevel = 4;
+                else if (ratio >= 0.75) calculatedLevel = 3;
+                else if (ratio >= 0.5) calculatedLevel = 2;
+                else if (ratio > 0) calculatedLevel = 1;
+
+                level = Math.max(level, calculatedLevel);
+            }
+        }
+
+        progressMap.set(key, {
             date: new Date(status.date),
-            progressLevel: status.progressLevel,
+            progressLevel: level,
             taskId: task.id,
             taskTitle: task.title
         });
     }
 
-    return progressData.sort((a, b) => a.date.getTime() - b.date.getTime());
+    // 2. Process Timer Sessions (if applicable)
+    if (task.timerSessions && (task.habitType === 'time' || task.habitType === 'both')) {
+        const requiredSeconds = (task.requiredMinutes || 60) * 60;
+        if (requiredSeconds > 0) {
+            const sessionsByDate = new Map<string, number>();
+
+            // Sum up seconds for each day
+            for (const session of task.timerSessions) {
+                const key = new Date(session.date).toISOString().split('T')[0];
+                sessionsByDate.set(key, (sessionsByDate.get(key) || 0) + session.seconds);
+            }
+
+            // Calculate progress and merge
+            for (const [key, seconds] of sessionsByDate.entries()) {
+                let level = 0;
+                const ratio = seconds / requiredSeconds;
+                if (ratio >= 1) level = 4;
+                else if (ratio >= 0.75) level = 3;
+                else if (ratio >= 0.5) level = 2;
+                else if (ratio > 0) level = 1;
+
+                const existing = progressMap.get(key);
+                // Use the higher progress level if both exist
+                if (!existing || level > existing.progressLevel) {
+                    progressMap.set(key, {
+                        date: new Date(key),
+                        progressLevel: level,
+                        taskId: task.id,
+                        taskTitle: task.title
+                    });
+                }
+            }
+        }
+    }
+
+    return Array.from(progressMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 /**

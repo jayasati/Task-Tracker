@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { Task } from "@/types/task";
+import { get2AMDayKey } from "@/lib/utils/date";
 
 export function useTaskSubtasks(
     task: Task,
     updateStatus: any,
     refetch: () => void
 ) {
-    const today = new Date().toISOString().split("T")[0];
+    const today = get2AMDayKey(new Date());
 
     const currentStatus = task.statuses.find((s) => {
         const d = new Date(s.date);
-        return d.toISOString().split("T")[0] === today;
+        return get2AMDayKey(d) === today;
     });
 
     const [localCompleted, setLocalCompleted] = useState<string[]>([]);

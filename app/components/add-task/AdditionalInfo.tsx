@@ -17,6 +17,7 @@ export default function AdditionalInfo({
     const mode = form.mode || form.category;
     const config = getModeConfig(mode);
     const inputClass = getInputClass(mode);
+    const showSubtasksHint = (form.habitType === "amount" || form.habitType === "both");
 
     return (
         <>
@@ -29,6 +30,11 @@ export default function AdditionalInfo({
                         value={form.subtasksStr}
                         onChange={(e) => updateForm("subtasksStr", e.target.value)}
                     />
+                    {showSubtasksHint && (
+                        <p className="text-xs text-gray-500 mt-1">
+                            Each subtask counts toward the daily required amount.
+                        </p>
+                    )}
                 </div>
             )}
 

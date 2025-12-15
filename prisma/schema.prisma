@@ -1,6 +1,6 @@
 datasource db {
   provider = "postgresql"
-
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -11,10 +11,12 @@ model Task {
   id       String   @id @default(cuid())
   title    String
   type     String   @default("task")
+  habitType String   @default("") // "" | time | amount | both
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   logs     TimeLog[]
   statuses   TaskStatus[]
+  timerSessions TimerSession[]
   
   // User association - links task to Clerk user
   userId   String   @default("") // Clerk user ID
@@ -28,6 +30,8 @@ model Task {
   category   String   @default("task") // task, make_habit, break_habit, professional
   amount     String?  // "10 reps", "2 liters"
   estimate   Int?     // in minutes
+  requiredMinutes Int? @default(0) // daily required minutes for time/both habits
+  requiredAmount  Int? @default(0) // daily required amount for amount/both habits
   subtasks   String[]
   notes      String?
   
@@ -38,6 +42,10 @@ model Task {
   
   // Progress tracking (0-4 level system)
   progressLevel Int      @default(0) // 0=not attempted, 1=gray, 2=50%, 3=70%, 4=100%
+  
+  // Multi-select and timer tracking
+  isSelected    Boolean   @default(false) // For multi-select delete
+  lastResetDate DateTime? // Last 2AM reset timestamp
   
   @@index([isArchived])
   @@index([category])
@@ -74,9 +82,25 @@ model TaskStatus {
   @@index([taskId])
 }
 
+model TimerSession {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  startTime DateTime
+  endTime   DateTime?
+  date      DateTime // The day this session belongs to (based on 2AM cutoff)
+  seconds   Int      @default(0) // Calculated duration when stopped
+  isActive  Boolean  @default(true) // Whether timer is currently running
+  
+  @@index([taskId])
+  @@index([date])
+  @@index([isActive])
+}
+
 enum Status {
   NONE
   FAIL
   HALF
   SUCCESS
 }
+

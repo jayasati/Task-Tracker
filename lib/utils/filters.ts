@@ -32,6 +32,53 @@ export function filterByCategory(tasks: Task[], category: Category): Task[] {
     return tasks.filter(t => t.category === category);
 }
 
+import { get2AMDayKey, toISODate } from './date';
+
+/**
+ * Check if a habit is completed for the current day (2AM boundary)
+ */
+function isHabitCompletedToday(task: Task): boolean {
+    // Skip if it's a one-off task (relies on isCompleted)
+    if (task.category === 'task' && task.repeatMode === 'none') return false;
+
+    const todayKey = get2AMDayKey(new Date());
+
+    // 1. Check Checkbox/Status Progress
+    const todayStatus = task.statuses?.find(s => {
+        const d = new Date(s.date);
+        return get2AMDayKey(d) === todayKey || toISODate(d) === todayKey;
+    });
+
+    if (todayStatus) {
+        if (todayStatus.progressLevel === 4) return true; // 100%
+        if (todayStatus.status === 'SUCCESS') return true;
+    }
+
+    // 2. Check Timer Progress
+    if (task.habitType === 'time' || task.habitType === 'both') {
+        const requiredSeconds = (task.requiredMinutes || 0) * 60;
+        if (requiredSeconds > 0) {
+            const todaySeconds = (task.timerSessions || []).reduce((acc, sess) => {
+                const sessKey = get2AMDayKey(new Date(sess.date));
+                return sessKey === todayKey ? acc + sess.seconds : acc;
+            }, 0);
+
+            // Check if accumulated time meets requirement
+            if (todaySeconds >= requiredSeconds) return true;
+        }
+    }
+
+    // 3. Check Amount/Subtask Progress
+    const completedCount = todayStatus?.completedSubtasks?.length || 0;
+    const targetAmount = task.requiredAmount ?? task.subtasks?.length ?? 0;
+
+    if (targetAmount > 0 && completedCount >= targetAmount) {
+        return true;
+    }
+
+    return false;
+}
+
 /**
  * Filter tasks by sub-view (active/archived/completed)
  */
@@ -40,11 +87,13 @@ export function filterBySubView(tasks: Task[], subView: SubView): Task[] {
 
     switch (subView) {
         case 'active':
-            // Active: not completed, not archived, and not past end date
+            // Active: not completed, not archived, not past end date
+            // AND not completed today (for habits)
             return tasks.filter(t =>
                 !t.isCompleted &&
                 !t.isArchived &&
-                (!t.endDate || new Date(t.endDate) >= now)
+                (!t.endDate || new Date(t.endDate) >= now) &&
+                !isHabitCompletedToday(t)
             );
 
         case 'archived':
@@ -55,8 +104,11 @@ export function filterBySubView(tasks: Task[], subView: SubView): Task[] {
             );
 
         case 'completed':
-            // Completed: marked as completed
-            return tasks.filter(t => t.isCompleted);
+            // Completed: marked as completed permanently OR completed today
+            return tasks.filter(t =>
+                t.isCompleted ||
+                isHabitCompletedToday(t)
+            );
 
         default:
             return tasks;
