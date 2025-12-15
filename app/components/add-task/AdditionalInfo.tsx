@@ -14,8 +14,9 @@ export default function AdditionalInfo({
     updateForm,
     setIsExpanded,
 }: AdditionalInfoProps) {
-    const config = getModeConfig(form.category);
-    const inputClass = getInputClass(form.category);
+    const mode = form.mode || form.category;
+    const config = getModeConfig(mode);
+    const inputClass = getInputClass(mode);
 
     return (
         <>

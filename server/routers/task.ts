@@ -1,6 +1,7 @@
 import { router, protectedProcedure } from "../trpc";
 import { prisma } from "../db";
 import { z } from "zod";
+import { isProfessionalCategory } from "@/lib/utils/filters";
 
 
 
@@ -164,7 +165,7 @@ export const taskRouter = router({
   addTask: protectedProcedure
     .input(z.object({
       title: z.string(),
-      type: z.enum(["task", "amount", "time"]).default("task"),
+      type: z.enum(["task", "amount", "time", "habit"]).default("task"),
       repeatMode: z.string().default("none"),
       weekdays: z.array(z.number()).default([]),
       startDate: z.string().optional(),
@@ -181,11 +182,13 @@ export const taskRouter = router({
         throw new Error("User must be authenticated to create tasks");
       }
       // @ts-ignore prisma client types may be stale until generated
+      const resolvedType = isProfessionalCategory(input.category) ? 'habit' : input.type;
+
       return prisma.task.create({
         data: {
           userId: ctx.userId, // Associate task with current user
           title: input.title,
-          type: input.type,
+          type: resolvedType,
           repeatMode: input.repeatMode,
           weekdays: input.weekdays,
           startDate: input.startDate ? new Date(input.startDate) : undefined,
@@ -392,80 +395,3 @@ export const taskRouter = router({
 
 });
 
-/**
- * FILE: server/routers/task.ts
- * 
- * PURPOSE:
- * TRPC router defining all task-related API endpoints (queries and mutations).
- * Handles all client-side database operations for tasks, time logs, and status tracking.
- * 
- * WHAT IT DOES:
- * - getTasks: Fetches tasks for a specific month with logs, statuses, and aggregated totals
- * - addTask: Creates new task with all properties (title, type, dates, priority, etc.)
- * - deleteTask: Removes task and cascades to related logs and statuses
- * - updateSeconds: Adds time log entry when timer is stopped
- * - updateStatus: Updates daily status with subtask completion tracking
- * - updateTask: Updates task properties (primarily for subtask planning)
- * 
- * DEPENDENCIES (imports from):
- * - ../trpc: router and publicProcedure builders
- * - ../db: Prisma client instance
- * - zod: Schema validation library for input validation
- * 
- * DEPENDENTS (files that import this):
- * - server/index.ts: Combines this router into main appRouter
- * - All client-side hooks via TRPC client:
- *   - hooks/useTaskActions.ts: Uses updateSeconds, deleteTask, updateStatus
- *   - hooks/useAddTaskForm.ts: Uses addTask
- *   - hooks/useSubtaskModal.ts: Uses updateStatus, updateTask
- * 
- * RELATED FILES:
- * - server/queries/tasks.ts: Similar query logic for server components (SSR)
- * - prisma/schema.prisma: Database schema defining Task, TimeLog, TaskStatus models
- * - utils/trpc.ts: Client-side TRPC setup
- * 
- * ENDPOINT DETAILS:
- * 
- * 1. getTasks(month?, year?)
- *    - Returns: Task[] with logs, statuses, and totalSeconds
- *    - Includes 7-day buffer before month start for rollover logic
- *    - Aggregates time logs into totalSeconds per task
- *    - Used rarely (prefer server/queries/tasks.ts for SSR)
- * 
- * 2. addTask({ title, type, repeatMode, weekdays, dates, priority, category, etc. })
- *    - Validates all fields with Zod schema
- *    - Creates task with empty logs and statuses arrays
- *    - Returns: Created task object
- * 
- * 3. deleteTask({ taskId })
- *    - Deletes task by ID
- *    - Prisma cascades deletion to logs and statuses
- *    - Returns: Deleted task object
- * 
- * 4. updateSeconds({ taskId, seconds, date })
- *    - Creates TimeLog entry with seconds and date
- *    - Used when timer is stopped
- *    - Returns: Created TimeLog object
- * 
- * 5. updateStatus({ taskId, date, status, completedSubtasks?, dailySubtasks? })
- *    - Updates or creates TaskStatus for specific date
- *    - Handles subtask completion tracking
- *    - Implements daily freeze (dailySubtasks) for historical records
- *    - Returns: Updated/created TaskStatus object
- * 
- * 6. updateTask({ id, subtasks? })
- *    - Updates task properties (currently only subtasks)
- *    - Used for planning next day's subtasks
- *    - Returns: Updated task object
- * 
- * NOTES:
- * - All procedures are public (no authentication middleware)
- * - Uses superjson transformer for Date serialization
- * - Input validation with Zod prevents invalid data
- * - getTasks includes 7-day buffer: statusStartDate = startDate - 7 days
- * - This buffer enables rollover logic (uncompleted subtasks from previous day)
- * - totalSeconds is aggregated from TimeLog entries using _sum
- * - updateStatus uses upsert pattern (update if exists, create if not)
- * - Prisma handles cascading deletes for related records
- * - All mutations trigger client-side refetch via onSuccess callbacks
- */

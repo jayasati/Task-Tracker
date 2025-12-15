@@ -14,8 +14,9 @@ export default function ScheduleSection({
     updateForm,
     toggleWeekday,
 }: ScheduleSectionProps) {
-    const config = getModeConfig(form.category);
-    const inputClass = getInputClass(form.category);
+    const mode = form.mode || form.category;
+    const config = getModeConfig(mode);
+    const inputClass = getInputClass(mode);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

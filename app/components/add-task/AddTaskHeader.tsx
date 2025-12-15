@@ -16,7 +16,7 @@ export default function AddTaskHeader({
     setIsExpanded,
     isPending,
 }: AddTaskHeaderProps) {
-    const config = getModeConfig(form.category);
+    const config = getModeConfig(form.mode || form.category);
 
     return (
         <div className="flex flex-col md:flex-row gap-4 items-start">

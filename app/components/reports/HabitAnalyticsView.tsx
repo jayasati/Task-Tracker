@@ -10,6 +10,8 @@ import { PeriodNavigator } from '../analytics/PeriodNavigator';
 import { calculateAnalytics } from '@/lib/utils/analytics';
 import { trpc } from '@/utils/trpc';
 
+import { isProfessionalCategory } from '@/lib/utils/filters';
+
 interface HabitAnalyticsViewProps {
     habitId: string;
     category: 'make_habit' | 'break_habit' | 'professional';
@@ -34,7 +36,10 @@ export function HabitAnalyticsView({ habitId, category, categoryTitle, categoryI
     }, [refetch]);
 
     // Find the specific habit
-    const habit = tasks?.find(t => t.id === habitId && t.category === category);
+    const habit = tasks?.find(t =>
+        t.id === habitId &&
+        (category === 'professional' ? isProfessionalCategory(t.category) : t.category === category)
+    );
 
     // Reset period when time range changes
     React.useEffect(() => {
@@ -69,6 +74,10 @@ export function HabitAnalyticsView({ habitId, category, categoryTitle, categoryI
 
     // Calculate analytics for this specific habit
     const analytics = calculateAnalytics([habit], category, timeRange, currentPeriod, true);
+
+    const displayType = isProfessionalCategory(habit.category) && habit.type === 'task'
+        ? 'habit'
+        : habit.type;
 
     const handlePeriodNavigate = (direction: 'prev' | 'next') => {
         const newPeriod = new Date(currentPeriod);
@@ -115,7 +124,7 @@ export function HabitAnalyticsView({ habitId, category, categoryTitle, categoryI
     const categorySlug = category.replace('_', '-');
 
     return (
-        <div className={`min-h-screen bg-gradient-to-b ${colors.gradient}`}>
+        <div className={`min-h-screen bg-linear-to-b ${colors.gradient}`}>
             {/* Breadcrumb Navigation */}
             <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 py-4">
@@ -146,7 +155,7 @@ export function HabitAnalyticsView({ habitId, category, categoryTitle, categoryI
                                 </h1>
                                 <div className="flex items-center gap-3">
                                     <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 capitalize">
-                                        {habit.type}
+                                        {displayType}
                                     </span>
                                     {habit.repeatMode !== 'none' && (
                                         <span className="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-600 capitalize">
@@ -168,7 +177,7 @@ export function HabitAnalyticsView({ habitId, category, categoryTitle, categoryI
                 </div>
 
                 {/* Analytics Card */}
-                <div className={`bg-gradient-to-br ${colors.gradient} rounded-2xl shadow-xl border-2 ${colors.border} p-8`}>
+                <div className={`bg-linear-to-br ${colors.gradient} rounded-2xl shadow-xl border-2 ${colors.border} p-8`}>
                     {/* Heatmap Section */}
                     <div className="bg-white rounded-xl p-6 mb-6 shadow-sm">
                         <div className="flex items-center justify-between mb-4">
