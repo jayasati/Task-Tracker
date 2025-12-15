@@ -17,9 +17,26 @@ export default function TaskDetails({ form, updateForm }: TaskDetailsProps) {
     const professionalOptions = ['leetcode', 'project building', 'machine learning', 'custom'];
     const normalizedCategory = (form.category || '').toLowerCase();
     const selectValue = professionalOptions.includes(normalizedCategory) ? normalizedCategory : (form.category ? 'custom' : '');
+    const showHabitTypeSelector = mode === 'make_habit' || mode === 'professional';
 
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {showHabitTypeSelector && (
+                <div>
+                    <label className={labelClass}>Habit Type</label>
+                    <select
+                        value={form.habitType}
+                        onChange={(e) => updateForm("habitType", e.target.value)}
+                        className={`${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%236b7280%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_1rem_center] bg-no-repeat pr-8 cursor-pointer text-center`}
+                        style={{ textAlignLast: "center" }}
+                    >
+                        <option value="time">Time-based</option>
+                        <option value="amount">Amount-based</option>
+                        <option value="both">Both (Time + Amount)</option>
+                    </select>
+                </div>
+            )}
+
             {config.fields.showPriority && (
                 <div>
                     <label className={labelClass}>Priority</label>
@@ -85,6 +102,36 @@ export default function TaskDetails({ form, updateForm }: TaskDetailsProps) {
                             <option value="sales">Sales</option>
                         </select>
                     )}
+                </div>
+            )}
+
+            {(showHabitTypeSelector && (form.habitType === "time" || form.habitType === "both")) && (
+                <div>
+                    <label className={labelClass}>Required hours / day</label>
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.25"
+                        placeholder="e.g., 2"
+                        className={inputClass}
+                        value={form.requiredHours}
+                        onChange={(e) => updateForm("requiredHours", e.target.value)}
+                    />
+                </div>
+            )}
+
+            {(showHabitTypeSelector && (form.habitType === "amount" || form.habitType === "both")) && (
+                <div>
+                    <label className={labelClass}>Required amount / day</label>
+                    <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="e.g., 5"
+                        className={inputClass}
+                        value={form.requiredAmount}
+                        onChange={(e) => updateForm("requiredAmount", e.target.value)}
+                    />
                 </div>
             )}
 

@@ -7,6 +7,7 @@ import TaskCardSkeleton from "./components/TaskCardSkeleton";
 import MainTabs from "./components/Navigation/MainTabs";
 import SubTabs from "./components/Navigation/SubTabs";
 import TaskListContainer from "./components/TaskList/TaskListContainer";
+import DeleteSelectedButton from "./components/DeleteSelectedButton";
 import { getTaskCounts } from "@/lib/utils/filters";
 
 function HomeContent() {
@@ -70,6 +71,14 @@ function HomeContent() {
           <AddTask activeTab={activeTab} />
         </div>
       )}
+
+      {/* Multi-select Delete Button */}
+      <DeleteSelectedButton
+        selectedTasks={(tasks || [])
+          .filter(t => t.isSelected)
+          .map(t => ({ id: t.id, title: t.title }))}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }

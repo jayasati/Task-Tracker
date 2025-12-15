@@ -13,8 +13,8 @@ CREATE INDEX IF NOT EXISTS "TaskStatus_date_idx" ON "TaskStatus"("date");
 CREATE INDEX IF NOT EXISTS "TaskStatus_taskId_idx" ON "TaskStatus"("taskId");
 
 -- Index on Task.isArchived for filtering archived tasks
-CREATE INDEX IF NOT EXISTS "Task_isArchived_idx" ON "Task"("isArchived");
+--CREATE INDEX IF NOT EXISTS "Task_isArchived_idx" ON "Task"("isArchived");
 
 -- Index on Task.category for category filtering
-CREATE INDEX IF NOT EXISTS "Task_category_idx" ON "Task"("category");
+--CREATE INDEX IF NOT EXISTS "Task_category_idx" ON "Task"("category");
 

@@ -8,6 +8,7 @@ export interface AddTaskFormState {
     mode: ModeType;
     title: string;
     type: TaskType;
+    habitType: "" | "time" | "amount" | "both";
     repeatMode: string;
     weekdays: number[];
     startDate: string;
@@ -16,6 +17,8 @@ export interface AddTaskFormState {
     category: string;
     amount: string;
     estimate: string;
+    requiredHours: string;
+    requiredAmount: string;
     subtasksStr: string;
     notes: string;
 }
@@ -52,6 +55,7 @@ export function useAddTaskForm(activeTab: string) {
         mode: initialMode,
         title: "",
         type: defaultTypeForMode(initialMode),
+        habitType: initialMode === 'professional' || initialMode === 'make_habit' ? "time" : "",
         repeatMode: initialMode === 'task' ? 'none' : 'daily',
         weekdays: [],
         startDate: "", // Will be set in useEffect to avoid hydration mismatch
@@ -60,6 +64,8 @@ export function useAddTaskForm(activeTab: string) {
         category: initialMode === 'professional' ? "" : initialMode, // Custom for professional, preset for others
         amount: "",
         estimate: "",
+        requiredHours: "",
+        requiredAmount: "",
         subtasksStr: "",
         notes: ""
     });
@@ -81,6 +87,7 @@ export function useAddTaskForm(activeTab: string) {
             mode: newMode,
             category: newMode === 'professional' ? prev.category : newMode,
             type: defaultTypeForMode(newMode),
+            habitType: newMode === 'professional' || newMode === 'make_habit' ? "time" : "",
             // Also update repeatMode based on mode
             repeatMode: newMode === 'task' ? 'none' : (prev.repeatMode === 'none' ? 'daily' : prev.repeatMode)
         }));
@@ -94,6 +101,7 @@ export function useAddTaskForm(activeTab: string) {
                 mode: resetMode,
                 title: "",
                 type: defaultTypeForMode(resetMode),
+                habitType: resetMode === 'professional' || resetMode === 'make_habit' ? "time" : "",
                 repeatMode: resetMode === 'task' ? 'none' : 'daily',
                 weekdays: [],
                 startDate: today,
@@ -102,6 +110,8 @@ export function useAddTaskForm(activeTab: string) {
                 category: resetMode === 'professional' ? "" : resetMode,
                 amount: "",
                 estimate: "",
+                requiredHours: "",
+                requiredAmount: "",
                 subtasksStr: "",
                 notes: ""
             });
@@ -149,6 +159,7 @@ export function useAddTaskForm(activeTab: string) {
         addTask.mutate({
             title: form.title,
             type: form.type,
+            habitType: form.habitType,
             repeatMode: form.repeatMode,
             weekdays: form.weekdays,
             startDate: form.startDate || undefined,
@@ -157,6 +168,8 @@ export function useAddTaskForm(activeTab: string) {
             category: form.category || form.mode,
             amount: form.amount.trim() || undefined,
             estimate: form.estimate ? parseInt(form.estimate) : undefined,
+            requiredMinutes: form.requiredHours ? Math.round(parseFloat(form.requiredHours) * 60) : undefined,
+            requiredAmount: form.requiredAmount ? parseInt(form.requiredAmount) : undefined,
             subtasks: form.subtasksStr.split(",").map(s => s.trim()).filter(Boolean),
             notes: form.notes.trim() || undefined,
         });

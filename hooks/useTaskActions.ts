@@ -1,7 +1,10 @@
 import { trpc } from "@/utils/trpc";
 import { Status } from "@prisma/client";
 
-export function useTaskActions(refetch: () => void) {
+export function useTaskActions(
+    refetch: () => void,
+    queryInput?: { month: number; year: number }
+) {
     const utils = trpc.useUtils();
 
     const updateSeconds = trpc.task.updateSeconds.useMutation({
@@ -10,8 +13,12 @@ export function useTaskActions(refetch: () => void) {
 
     const deleteTask = trpc.task.deleteTask.useMutation({
         onSuccess: () => {
-            // Invalidate the query cache to trigger a refetch
-            utils.task.getTasks.invalidate();
+            // Invalidate the specific query if input provided, else invalidate all
+            if (queryInput) {
+                utils.task.getTasks.invalidate(queryInput);
+            } else {
+                utils.task.getTasks.invalidate();
+            }
             refetch();
         },
     });
@@ -20,14 +27,14 @@ export function useTaskActions(refetch: () => void) {
         // Optimistic update for instant feedback
         onMutate: async (variables) => {
             // Cancel outgoing refetches
-            await utils.task.getTasks.cancel();
+            await utils.task.getTasks.cancel(queryInput);
 
             // Snapshot previous value
-            const previousTasks = utils.task.getTasks.getData();
+            const previousTasks = utils.task.getTasks.getData(queryInput);
 
             // Optimistically update cache
             if (previousTasks) {
-                utils.task.getTasks.setData(undefined, (old) => {
+                utils.task.getTasks.setData(queryInput, (old) => {
                     if (!old) return old;
                     return old.map(task => {
                         if (task.id === variables.taskId) {
@@ -51,7 +58,7 @@ export function useTaskActions(refetch: () => void) {
                                     statuses: [...task.statuses, {
                                         id: 'temp-' + Date.now(),
                                         taskId: variables.taskId,
-                                        date: new Date(variables.date),
+                                        date: new Date(variables.date + 'T12:00:00'),
                                         status: variables.status as Status,
                                         completedSubtasks: variables.completedSubtasks || [],
                                         dailySubtasks: variables.dailySubtasks || [],
@@ -70,12 +77,14 @@ export function useTaskActions(refetch: () => void) {
         onError: (err, variables, context) => {
             // Rollback on error
             if (context?.previousTasks) {
-                utils.task.getTasks.setData(undefined, context.previousTasks);
+                utils.task.getTasks.setData(queryInput, context.previousTasks);
             }
         },
         onSettled: () => {
             // Refetch to ensure consistency
             refetch();
+            if (queryInput) utils.task.getTasks.invalidate(queryInput);
+            else utils.task.getTasks.invalidate();
         },
     });
 
@@ -83,17 +92,12 @@ export function useTaskActions(refetch: () => void) {
         // Optimistic update for instant feedback
         onMutate: async (variables) => {
             // Cancel all outgoing refetches for getTasks
-            await utils.task.getTasks.cancel();
+            await utils.task.getTasks.cancel(queryInput);
 
-            // Snapshot previous value for current month
-            const now = new Date();
-            const queryInput = {
-                month: now.getMonth(),
-                year: now.getFullYear(),
-            };
+            // Snapshot previous value
             const previousTasks = utils.task.getTasks.getData(queryInput);
 
-            // Optimistically update the cache for current month
+            // Optimistically update the cache
             utils.task.getTasks.setData(queryInput, (old) => {
                 if (!old) return old;
                 return old.map((task) => {
@@ -118,7 +122,7 @@ export function useTaskActions(refetch: () => void) {
                                 statuses: [...task.statuses, {
                                     id: 'temp-' + Date.now(),
                                     taskId: variables.taskId,
-                                    date: new Date(variables.date),
+                                    date: new Date(variables.date + 'T12:00:00'),
                                     status: 'NONE' as const,
                                     completedSubtasks: [],
                                     dailySubtasks: [],
@@ -131,17 +135,19 @@ export function useTaskActions(refetch: () => void) {
                 });
             });
 
-            return { previousTasks, queryInput };
+            return { previousTasks };
         },
         onError: (err, variables, context) => {
             // Rollback on error
-            if (context?.previousTasks && context?.queryInput) {
-                utils.task.getTasks.setData(context.queryInput, context.previousTasks);
+            if (context?.previousTasks) {
+                utils.task.getTasks.setData(queryInput, context.previousTasks);
             }
         },
         onSettled: () => {
             // Invalidate ALL getTasks queries to update analytics views
-            utils.task.getTasks.invalidate();
+            if (queryInput) utils.task.getTasks.invalidate(queryInput);
+            else utils.task.getTasks.invalidate();
+
             // Also trigger the refetch callback
             refetch();
         },

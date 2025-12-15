@@ -15,10 +15,21 @@ export interface TaskStatus {
     progressLevel: number; // 0-4 level progress tracking
 }
 
+export interface TimerSession {
+    id: string;
+    taskId: string;
+    startTime: Date | string;
+    endTime?: Date | string | null;
+    date: Date | string;
+    seconds: number;
+    isActive: boolean;
+}
+
 export interface Task {
     id: string;
     title: string;
     type: string;
+    habitType?: string;
     repeatMode?: string;
     weekdays?: number[];
     startDate?: Date | string | null;
@@ -27,16 +38,20 @@ export interface Task {
     category: string; // Base categories or custom professional label
     amount?: string | null;
     estimate?: number | null;
+    requiredMinutes?: number | null;
+    requiredAmount?: number | null;
     subtasks?: string[];
     notes?: string | null;
     isCompleted: boolean;
     completedAt?: Date | string | null;
     isArchived: boolean;
+    isSelected?: boolean; // For multi-select delete
     progressLevel?: number; // 0-4 level progress tracking
     createdAt?: Date | string;
     updatedAt?: Date | string;
     logs: TaskLog[];
     statuses: TaskStatus[];
+    timerSessions?: TimerSession[]; // Timer sessions for 2AM tracking
     totalSeconds?: number;
 }
 

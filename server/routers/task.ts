@@ -90,6 +90,7 @@ export const taskRouter = router({
           id: true,
           title: true,
           type: true,
+          habitType: true,
           repeatMode: true,
           weekdays: true,
           startDate: true,
@@ -98,11 +99,14 @@ export const taskRouter = router({
           category: true,
           amount: true,
           estimate: true,
+          requiredMinutes: true,
+          requiredAmount: true,
           subtasks: true,
           notes: true,
           isCompleted: true,
           completedAt: true,
           isArchived: true,
+          isSelected: true, // For multi-select delete
           progressLevel: true, // Include progress level
           createdAt: true,
           updatedAt: true,
@@ -133,6 +137,23 @@ export const taskRouter = router({
               completedSubtasks: true,
               dailySubtasks: true,
               progressLevel: true,
+            },
+          },
+          timerSessions: {
+            where: {
+              date: {
+                gte: statusStartDate,
+                lte: endDate,
+              }
+            },
+            select: {
+              id: true,
+              taskId: true,
+              startTime: true,
+              endTime: true,
+              date: true,
+              seconds: true,
+              isActive: true,
             },
           },
         },
@@ -166,6 +187,7 @@ export const taskRouter = router({
     .input(z.object({
       title: z.string(),
       type: z.enum(["task", "amount", "time", "habit"]).default("task"),
+      habitType: z.enum(["", "time", "amount", "both"]).default(""),
       repeatMode: z.string().default("none"),
       weekdays: z.array(z.number()).default([]),
       startDate: z.string().optional(),
@@ -174,6 +196,8 @@ export const taskRouter = router({
       category: z.string().optional(),
       amount: z.string().optional(),
       estimate: z.number().optional(),
+      requiredMinutes: z.number().optional(),
+      requiredAmount: z.number().optional(),
       subtasks: z.array(z.string()).default([]),
       notes: z.string().optional(),
     }))
@@ -189,6 +213,7 @@ export const taskRouter = router({
           userId: ctx.userId, // Associate task with current user
           title: input.title,
           type: resolvedType,
+          habitType: input.habitType,
           repeatMode: input.repeatMode,
           weekdays: input.weekdays,
           startDate: input.startDate ? new Date(input.startDate) : undefined,
@@ -197,6 +222,8 @@ export const taskRouter = router({
           category: input.category,
           amount: input.amount,
           estimate: input.estimate,
+          requiredMinutes: input.requiredMinutes,
+          requiredAmount: input.requiredAmount,
           subtasks: input.subtasks,
           notes: input.notes,
         }
@@ -209,12 +236,12 @@ export const taskRouter = router({
       if (!ctx.userId) {
         throw new Error("User must be authenticated");
       }
-      
+
       // Verify the task belongs to the current user
       const task = await prisma.task.findFirst({
         where: { id: input.taskId, userId: ctx.userId },
       });
-      
+
       if (!task) {
         throw new Error("Task not found or access denied");
       }
@@ -241,12 +268,12 @@ export const taskRouter = router({
       if (!ctx.userId) {
         throw new Error("User must be authenticated");
       }
-      
+
       // Verify the task belongs to the current user
       const task = await prisma.task.findFirst({
         where: { id: input.taskId, userId: ctx.userId },
       });
-      
+
       if (!task) {
         throw new Error("Task not found or access denied");
       }
@@ -281,12 +308,12 @@ export const taskRouter = router({
       if (!ctx.userId) {
         throw new Error("User must be authenticated");
       }
-      
+
       // Verify the task belongs to the current user before deleting
       const task = await prisma.task.findFirst({
         where: { id: input.taskId, userId: ctx.userId },
       });
-      
+
       if (!task) {
         throw new Error("Task not found or access denied");
       }
@@ -307,12 +334,12 @@ export const taskRouter = router({
       if (!ctx.userId) {
         throw new Error("User must be authenticated");
       }
-      
+
       // Verify the task belongs to the current user
       const task = await prisma.task.findFirst({
         where: { id: input.id, userId: ctx.userId },
       });
-      
+
       if (!task) {
         throw new Error("Task not found or access denied");
       }
@@ -335,12 +362,12 @@ export const taskRouter = router({
       if (!ctx.userId) {
         throw new Error("User must be authenticated");
       }
-      
+
       // Verify the task belongs to the current user
       const task = await prisma.task.findFirst({
         where: { id: input.taskId, userId: ctx.userId },
       });
-      
+
       if (!task) {
         throw new Error("Task not found or access denied");
       }
@@ -391,6 +418,266 @@ export const taskRouter = router({
       return statusResult;
     }),
 
+  //------------------------------------------------
+  // Timer Session Management
+  //------------------------------------------------
+  startTimer: protectedProcedure
+    .input(z.object({
+      taskId: z.string(),
+      date: z.string(), // ISO date string for the 2AM day
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId, userId: ctx.userId },
+      });
+
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
+      // Check if there's already an active timer for this task
+      const activeTimer = await prisma.timerSession.findFirst({
+        where: {
+          taskId: input.taskId,
+          isActive: true,
+        },
+      });
+
+      if (activeTimer) {
+        throw new Error("Timer is already running for this task");
+      }
+
+      // Create new timer session
+      return prisma.timerSession.create({
+        data: {
+          taskId: input.taskId,
+          startTime: new Date(),
+          date: new Date(input.date),
+          isActive: true,
+        },
+      });
+    }),
+
+  stopTimer: protectedProcedure
+    .input(z.object({
+      taskId: z.string(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId, userId: ctx.userId },
+      });
+
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
+      // Find active timer session
+      const activeTimer = await prisma.timerSession.findFirst({
+        where: {
+          taskId: input.taskId,
+          isActive: true,
+        },
+      });
+
+      if (!activeTimer) {
+        throw new Error("No active timer found for this task");
+      }
+
+      // Calculate elapsed seconds
+      const endTime = new Date();
+      const seconds = Math.floor((endTime.getTime() - activeTimer.startTime.getTime()) / 1000);
+
+      // Update timer session
+      return prisma.timerSession.update({
+        where: { id: activeTimer.id },
+        data: {
+          endTime,
+          seconds,
+          isActive: false,
+        },
+      });
+    }),
+
+  addMissedTime: protectedProcedure
+    .input(z.object({
+      taskId: z.string(),
+      seconds: z.number(),
+      date: z.string(), // ISO date string for the 2AM day
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId, userId: ctx.userId },
+      });
+
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
+      // Create a completed timer session for the missed time
+      const now = new Date();
+      return prisma.timerSession.create({
+        data: {
+          taskId: input.taskId,
+          startTime: new Date(now.getTime() - input.seconds * 1000),
+          endTime: now,
+          date: new Date(input.date),
+          seconds: input.seconds,
+          isActive: false,
+        },
+      });
+    }),
+
+  getActiveTimer: protectedProcedure
+    .input(z.object({
+      taskId: z.string(),
+    }))
+    .query(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        return null;
+      }
+
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId, userId: ctx.userId },
+      });
+
+      if (!task) {
+        return null;
+      }
+
+      return prisma.timerSession.findFirst({
+        where: {
+          taskId: input.taskId,
+          isActive: true,
+        },
+      });
+    }),
+
+  //------------------------------------------------
+  // Multi-Select Delete
+  //------------------------------------------------
+  toggleTaskSelection: protectedProcedure
+    .input(z.object({
+      taskId: z.string(),
+      isSelected: z.boolean(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.taskId, userId: ctx.userId },
+      });
+
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
+      return prisma.task.update({
+        where: { id: input.taskId },
+        data: { isSelected: input.isSelected },
+      });
+    }),
+
+  deleteMultipleTasks: protectedProcedure
+    .input(z.object({
+      taskIds: z.array(z.string()),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+
+      // Verify all tasks belong to the current user
+      const tasks = await prisma.task.findMany({
+        where: {
+          id: { in: input.taskIds },
+          userId: ctx.userId,
+        },
+      });
+
+      if (tasks.length !== input.taskIds.length) {
+        throw new Error("Some tasks not found or access denied");
+      }
+
+      // Delete related data and tasks
+      await prisma.timeLog.deleteMany({ where: { taskId: { in: input.taskIds } } });
+      await prisma.taskStatus.deleteMany({ where: { taskId: { in: input.taskIds } } });
+      await prisma.timerSession.deleteMany({ where: { taskId: { in: input.taskIds } } });
+      await prisma.task.deleteMany({ where: { id: { in: input.taskIds } } });
+
+      return { success: true, deletedCount: input.taskIds.length };
+    }),
+
+  //------------------------------------------------
+  // Edit Task
+  //------------------------------------------------
+  editTask: protectedProcedure
+    .input(z.object({
+      id: z.string(),
+      title: z.string().optional(),
+      type: z.enum(["task", "amount", "time", "habit"]).optional(),
+      habitType: z.enum(["", "time", "amount", "both"]).optional(),
+      repeatMode: z.string().optional(),
+      weekdays: z.array(z.number()).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      priority: z.string().optional(),
+      category: z.string().optional(),
+      amount: z.string().optional(),
+      estimate: z.number().optional(),
+      requiredMinutes: z.number().optional(),
+      requiredAmount: z.number().optional(),
+      subtasks: z.array(z.string()).optional(),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new Error("User must be authenticated");
+      }
+
+      // Verify the task belongs to the current user
+      const task = await prisma.task.findFirst({
+        where: { id: input.id, userId: ctx.userId },
+      });
+
+      if (!task) {
+        throw new Error("Task not found or access denied");
+      }
+
+      const { id, ...updateData } = input;
+
+      // Convert date strings to Date objects if provided
+      const data: any = { ...updateData };
+      if (updateData.startDate !== undefined) {
+        data.startDate = updateData.startDate ? new Date(updateData.startDate) : null;
+      }
+      if (updateData.endDate !== undefined) {
+        data.endDate = updateData.endDate ? new Date(updateData.endDate) : null;
+      }
+
+      return prisma.task.update({
+        where: { id },
+        data,
+      });
+    }),
 
 
 });
