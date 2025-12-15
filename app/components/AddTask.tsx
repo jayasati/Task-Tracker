@@ -18,7 +18,7 @@ function AddTask({ activeTab }: AddTaskProps) {
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 mb-8 border border-gray-100 relative overflow-hidden">
       <form ref={formRef} onSubmit={submit} className="space-y-6 relative z-10">
-        <ModeHeader category={form.category} />
+        <ModeHeader category={form.mode || form.category} />
 
         <AddTaskHeader
           form={form}

@@ -4,6 +4,19 @@
 
 import { Task } from "@/types/task";
 
+export const BASE_CATEGORIES = ['task', 'make_habit', 'break_habit', 'professional'] as const;
+export const PROFESSIONAL_SUGGESTED = ['meeting', 'coding', 'study', 'sales', 'leetcode', 'project building', 'machine learning'];
+
+export function isProfessionalCategory(value: string | undefined | null): boolean {
+    const normalized = (value || '').trim().toLowerCase();
+    if (!normalized) return false;
+
+    // Anything not one of the base categories is treated as Professional
+    if (!BASE_CATEGORIES.some((cat) => cat === normalized)) return true;
+
+    return normalized === 'professional' || PROFESSIONAL_SUGGESTED.includes(normalized);
+}
+
 export type Category = 'task' | 'make_habit' | 'break_habit' | 'professional';
 export type SubView = 'active' | 'archived' | 'completed';
 export type MainTab = Category | 'reports' | 'today';
@@ -12,14 +25,8 @@ export type MainTab = Category | 'reports' | 'today';
  * Filter tasks by category
  */
 export function filterByCategory(tasks: Task[], category: Category): Task[] {
-    // Professional subcategories should be treated as professional
-    const professionalSubcategories = ['meeting', 'coding', 'study', 'sales'];
-
     if (category === 'professional') {
-        return tasks.filter(t =>
-            t.category === 'professional' ||
-            professionalSubcategories.includes(t.category?.toLowerCase() || '')
-        );
+        return tasks.filter(t => isProfessionalCategory(t.category));
     }
 
     return tasks.filter(t => t.category === category);

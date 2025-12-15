@@ -1,3 +1,5 @@
+import { isProfessionalCategory } from "../utils/filters";
+
 export type ModeType = 'task' | 'make_habit' | 'break_habit' | 'professional';
 
 export interface ModeConfig {
@@ -178,15 +180,11 @@ export const MODE_CONFIG: Record<ModeType, ModeConfig> = {
 };
 
 export function getModeConfig(category: string): ModeConfig {
-    // Map professional subcategories to their parent mode
-    const professionalSubcategories = ['meeting', 'coding', 'study', 'sales'];
+    const normalized = (category || '').toLowerCase();
 
-    let modeType: ModeType;
-    if (professionalSubcategories.includes(category.toLowerCase())) {
-        modeType = 'professional';
-    } else {
-        modeType = category as ModeType;
+    if (isProfessionalCategory(normalized)) {
+        return MODE_CONFIG.professional;
     }
 
-    return MODE_CONFIG[modeType] || MODE_CONFIG.task;
+    return MODE_CONFIG[normalized as ModeType] || MODE_CONFIG.task;
 }

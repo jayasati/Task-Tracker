@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Task } from '@/types/task';
-import { calculateAnalytics, getTotalDaysInRange } from '@/lib/utils/analytics';
+import { isProfessionalCategory } from '@/lib/utils/filters';
 
 interface ReportsCategoryBoxesProps {
     tasks: Task[];
@@ -58,7 +58,9 @@ export function ReportsCategoryBoxes({ tasks }: ReportsCategoryBoxesProps) {
 
     // Calculate summary stats for each category
     const getCategoryStats = (categoryId: string) => {
-        const categoryTasks = tasks.filter(t => t.category === categoryId);
+        const categoryTasks = categoryId === 'professional'
+            ? tasks.filter(t => isProfessionalCategory(t.category))
+            : tasks.filter(t => t.category === categoryId);
 
         return {
             totalHabits: categoryTasks.length
@@ -88,7 +90,7 @@ export function ReportsCategoryBoxes({ tasks }: ReportsCategoryBoxesProps) {
                             onClick={() => router.push(category.route)}
                             className={`
                                 group relative overflow-hidden
-                                bg-gradient-to-br ${category.gradient}
+                                bg-linear-to-br ${category.gradient}
                                 border-2 ${category.borderColor}
                                 rounded-2xl p-8
                                 shadow-lg hover:shadow-2xl
@@ -131,7 +133,7 @@ export function ReportsCategoryBoxes({ tasks }: ReportsCategoryBoxesProps) {
             </div>
 
             {/* Info Section */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+            <div className="bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
                 <div className="flex items-start gap-4">
                     <span className="text-3xl">💡</span>
                     <div>

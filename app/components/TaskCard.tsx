@@ -10,6 +10,7 @@ import { AddSubtask } from "./tasks/AddSubtask";
 import { ProgressBoxes } from "./tasks/ProgressBoxes";
 import { memo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { isProfessionalCategory } from "@/lib/utils/filters";
 
 function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
   const router = useRouter();
@@ -67,6 +68,10 @@ function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
   );
   const todayProgress = todayStatus?.progressLevel ?? 0;
 
+  const displayType = isProfessionalCategory(task.category) && task.type === 'task'
+    ? 'habit'
+    : task.type;
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-3 mb-2 border border-gray-100 hover:shadow-md transition-shadow">
       {/* Main row: Title, Type, Progress/Timer, Delete */}
@@ -75,7 +80,7 @@ function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <h3 className="text-base font-semibold text-gray-800 truncate">{task.title}</h3>
           <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 capitalize shrink-0">
-            {task.type}
+            {displayType}
           </span>
           {task.estimate && (
             <span className="text-xs text-gray-500 shrink-0">{task.estimate}m</span>
@@ -85,10 +90,10 @@ function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
         {/* Right side: View Analytics and Delete buttons */}
         <div className="flex items-center gap-2 shrink-0">
           {/* View Analytics button for habits only */}
-          {(task.category === 'make_habit' || task.category === 'break_habit' || task.category === 'professional') && (
+          {(task.category === 'make_habit' || task.category === 'break_habit' || isProfessionalCategory(task.category)) && (
             <button
               onClick={() => {
-                const categorySlug = task.category.replace('_', '-');
+                const categorySlug = (isProfessionalCategory(task.category) ? 'professional' : task.category).replace('_', '-');
                 router.push(`/reports/${categorySlug}/${task.id}`);
               }}
               className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"

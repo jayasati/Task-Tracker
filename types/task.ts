@@ -24,7 +24,7 @@ export interface Task {
     startDate?: Date | string | null;
     endDate?: Date | string | null;
     priority?: string;
-    category: string; // Required: "task", "make_habit", "break_habit", "professional"
+    category: string; // Base categories or custom professional label
     amount?: string | null;
     estimate?: number | null;
     subtasks?: string[];

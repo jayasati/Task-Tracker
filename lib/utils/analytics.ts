@@ -4,6 +4,7 @@
  */
 
 import { Task, TaskStatus } from '@/types/task';
+import { isProfessionalCategory } from './filters';
 
 export type TimeRange = 'weekly' | 'monthly' | 'yearly';
 
@@ -182,8 +183,10 @@ export function filterByTimeRange(data: DailyProgress[], range: TimeRange): Dail
 export function aggregateByCategory(tasks: Task[], category: string): DailyProgress[] {
     const progressMap = new Map<string, DailyProgress>();
 
-    // Filter tasks by category
-    const categoryTasks = tasks.filter(t => t.category === category);
+    // Filter tasks by category, treating any custom category as Professional when requested
+    const categoryTasks = category === 'professional'
+        ? tasks.filter(t => isProfessionalCategory(t.category))
+        : tasks.filter(t => t.category === category);
 
     // Aggregate all statuses from all tasks
     for (const task of categoryTasks) {
@@ -294,7 +297,11 @@ export function calculateAnalytics(
     const filteredProgress = filterByTimeRange(allProgress, timeRange);
 
     // Get habit creation date
-    const relevantTasks = singleHabit && tasks.length === 1 ? tasks : tasks.filter(t => t.category === category);
+    const relevantTasks = singleHabit && tasks.length === 1
+        ? tasks
+        : (category === 'professional'
+            ? tasks.filter(t => isProfessionalCategory(t.category))
+            : tasks.filter(t => t.category === category));
     const habitCreatedAt = relevantTasks.length > 0
         ? new Date(Math.min(...relevantTasks.map(t => new Date(t.createdAt || t.startDate || new Date()).getTime())))
         : new Date();

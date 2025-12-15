@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Task } from '@/types/task';
 import { calculateAnalytics } from '@/lib/utils/analytics';
+import { isProfessionalCategory } from '@/lib/utils/filters';
 
 interface CategoryHabitListProps {
     tasks: Task[];
@@ -17,7 +18,9 @@ export function CategoryHabitList({ tasks, category, categoryTitle, categoryIcon
     const router = useRouter();
 
     // Filter tasks by category
-    const categoryTasks = tasks.filter(t => t.category === category);
+    const categoryTasks = category === 'professional'
+        ? tasks.filter(t => isProfessionalCategory(t.category))
+        : tasks.filter(t => t.category === category);
 
     // Calculate analytics for each habit
     const habitsWithStats = categoryTasks.map(task => {
@@ -65,7 +68,12 @@ export function CategoryHabitList({ tasks, category, categoryTitle, categoryIcon
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {habitsWithStats.map((habit) => (
+            {habitsWithStats.map((habit) => {
+                const displayType = isProfessionalCategory(habit.category) && habit.type === 'task'
+                    ? 'habit'
+                    : habit.type;
+
+                return (
                 <button
                     key={habit.id}
                     onClick={() => handleHabitClick(habit.id)}
@@ -79,7 +87,7 @@ export function CategoryHabitList({ tasks, category, categoryTitle, categoryIcon
                     {/* Habit Type Badge */}
                     <div className="flex items-center gap-2 mb-4">
                         <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 capitalize">
-                            {habit.type}
+                            {displayType}
                         </span>
                         {habit.repeatMode !== 'none' && (
                             <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 capitalize">
@@ -90,13 +98,13 @@ export function CategoryHabitList({ tasks, category, categoryTitle, categoryIcon
 
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3">
+                        <div className="bg-linear-to-br from-orange-50 to-orange-100 rounded-lg p-3">
                             <div className="text-xs text-gray-600 mb-1">🔥 Streak</div>
                             <div className="text-xl font-bold text-gray-800">
                                 {habit.currentStreak}
                             </div>
                         </div>
-                        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3">
+                        <div className="bg-linear-to-br from-green-50 to-green-100 rounded-lg p-3">
                             <div className="text-xs text-gray-600 mb-1">📊 Consistency</div>
                             <div className="text-xl font-bold text-gray-800">
                                 {habit.consistency}%
@@ -117,7 +125,8 @@ export function CategoryHabitList({ tasks, category, categoryTitle, categoryIcon
                         <span className="ml-2 text-blue-600">→</span>
                     </div>
                 </button>
-            ))}
+                );
+            })}
         </div>
     );
 }

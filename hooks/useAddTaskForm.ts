@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/utils/trpc";
+import { ModeType } from "@/lib/config/modeConfig";
 
-export type TaskType = "task" | "amount" | "time";
+export type TaskType = "task" | "amount" | "time" | "habit";
 
 export interface AddTaskFormState {
+    mode: ModeType;
     title: string;
     type: TaskType;
     repeatMode: string;
@@ -19,7 +21,7 @@ export interface AddTaskFormState {
 }
 
 // Helper to map tab names to category values
-const mapTabToCategory = (tab: string): string => {
+const mapTabToCategory = (tab: string): ModeType => {
     switch (tab) {
         case 'make_habit':
             return 'make_habit';
@@ -36,19 +38,26 @@ const mapTabToCategory = (tab: string): string => {
     }
 };
 
+const defaultTypeForMode = (mode: ModeType): TaskType => {
+    return mode === 'professional' ? 'habit' : 'task';
+};
+
 export function useAddTaskForm(activeTab: string) {
     const [isExpanded, setIsExpanded] = useState(false);
     const utils = trpc.useUtils();
 
+    const initialMode = mapTabToCategory(activeTab);
+
     const [form, setForm] = useState<AddTaskFormState>({
+        mode: initialMode,
         title: "",
-        type: "task",
-        repeatMode: "none",
+        type: defaultTypeForMode(initialMode),
+        repeatMode: initialMode === 'task' ? 'none' : 'daily',
         weekdays: [],
         startDate: "", // Will be set in useEffect to avoid hydration mismatch
         endDate: "",
         priority: "medium",
-        category: mapTabToCategory(activeTab), // Sync with active tab
+        category: initialMode === 'professional' ? "" : initialMode, // Custom for professional, preset for others
         amount: "",
         estimate: "",
         subtasksStr: "",
@@ -64,29 +73,33 @@ export function useAddTaskForm(activeTab: string) {
         }));
     }, []);
 
-    // Sync category with active tab when it changes
+    // Sync mode/category with active tab when it changes
     useEffect(() => {
-        const newCategory = mapTabToCategory(activeTab);
+        const newMode = mapTabToCategory(activeTab);
         setForm(prev => ({
             ...prev,
-            category: newCategory,
-            // Also update repeatMode based on category
-            repeatMode: newCategory === 'task' ? 'none' : (prev.repeatMode === 'none' ? 'daily' : prev.repeatMode)
+            mode: newMode,
+            category: newMode === 'professional' ? prev.category : newMode,
+            type: defaultTypeForMode(newMode),
+            // Also update repeatMode based on mode
+            repeatMode: newMode === 'task' ? 'none' : (prev.repeatMode === 'none' ? 'daily' : prev.repeatMode)
         }));
     }, [activeTab]);
 
     const addTask = trpc.task.addTask.useMutation({
         onSuccess: () => {
             const today = new Date().toISOString().split('T')[0];
+            const resetMode = mapTabToCategory(activeTab);
             setForm({
+                mode: resetMode,
                 title: "",
-                type: "task",
-                repeatMode: "none",
+                type: defaultTypeForMode(resetMode),
+                repeatMode: resetMode === 'task' ? 'none' : 'daily',
                 weekdays: [],
                 startDate: today,
                 endDate: "",
                 priority: "medium",
-                category: mapTabToCategory(activeTab), // Sync with active tab
+                category: resetMode === 'professional' ? "" : resetMode,
                 amount: "",
                 estimate: "",
                 subtasksStr: "",
@@ -141,7 +154,7 @@ export function useAddTaskForm(activeTab: string) {
             startDate: form.startDate || undefined,
             endDate: form.endDate || undefined,
             priority: form.priority,
-            category: form.category,
+            category: form.category || form.mode,
             amount: form.amount.trim() || undefined,
             estimate: form.estimate ? parseInt(form.estimate) : undefined,
             subtasks: form.subtasksStr.split(",").map(s => s.trim()).filter(Boolean),
