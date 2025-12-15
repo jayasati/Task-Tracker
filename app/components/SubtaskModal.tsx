@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Status } from "@prisma/client";
+import { Status } from "@/types/task";
 import { useSubtaskModal } from "@/hooks/useSubtaskModal";
 import SubtaskModalList from "./tasks/SubtaskModalList";
 import SubtaskPlanningSection from "./tasks/SubtaskPlanningSection";

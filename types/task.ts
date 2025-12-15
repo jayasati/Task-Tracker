@@ -1,4 +1,5 @@
 import { Status } from "@prisma/client";
+export { Status };
 
 export interface TaskLog {
     seconds: number;
