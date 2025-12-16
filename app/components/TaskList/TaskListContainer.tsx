@@ -29,15 +29,30 @@ export default function TaskListContainer({ tasks, currentMonth, refetch }: Task
     // Calculate counts for sub-tabs
     const counts = useMemo(() => getTaskCounts(tasks), [tasks]);
 
+    // Priority order mapping: high -> medium -> low -> null/undefined
+    const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+    // Sort tasks by priority (high first, then medium, then low)
+    const sortByPriority = (taskList: Task[]): Task[] => {
+        return [...taskList].sort((a, b) => {
+            const priorityA = priorityOrder[a.priority?.toLowerCase() || ''] ?? 3;
+            const priorityB = priorityOrder[b.priority?.toLowerCase() || ''] ?? 3;
+            return priorityA - priorityB;
+        });
+    };
+
     // Filter tasks based on active tab and view
     const filteredTasks = useMemo(() => {
+        let result: Task[];
         if (activeTab === 'today') {
-            return getTodayTasks(tasks);
+            result = getTodayTasks(tasks);
+        } else {
+            // Regular category filtering
+            const categoryTasks = filterByCategory(tasks, activeTab as Category);
+            result = filterBySubView(categoryTasks, activeView);
         }
-
-        // Regular category filtering
-        const categoryTasks = filterByCategory(tasks, activeTab as Category);
-        return filterBySubView(categoryTasks, activeView);
+        // Sort by priority: high -> medium -> low
+        return sortByPriority(result);
     }, [tasks, activeTab, activeView]);
 
     // Get current category counts for sub-tabs

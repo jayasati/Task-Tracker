@@ -143,13 +143,22 @@ export function useTaskActions(
                 utils.task.getTasks.setData(queryInput, context.previousTasks);
             }
         },
+        onSuccess: () => {
+            // Don't refetch immediately - rely on optimistic update
+            // Only invalidate to mark stale for next navigation
+        },
         onSettled: () => {
-            // Invalidate ALL getTasks queries to update analytics views
-            if (queryInput) utils.task.getTasks.invalidate(queryInput);
-            else utils.task.getTasks.invalidate();
-
-            // Also trigger the refetch callback
-            refetch();
+            // Invalidate queries without forcing immediate refetch
+            // This marks them as stale but doesn't trigger a network request
+            if (queryInput) {
+                utils.task.getTasks.invalidate(queryInput, { refetchType: 'none' });
+            } else {
+                utils.task.getTasks.invalidate(undefined, { refetchType: 'none' });
+            }
+            
+            // Call refetch callback but with low priority
+            // This allows the UI to update first
+            setTimeout(() => refetch(), 100);
         },
     });
 
@@ -167,9 +176,10 @@ export function useTaskActions(
  * - Provides updateSeconds mutation for timer functionality
  * - Provides deleteTask mutation for removing tasks
  * - Provides updateStatus mutation with optimistic updates for instant feedback
+ * - Provides updateProgress mutation with instant UI updates (no lag)
  * - Automatically calls refetch() callback after successful mutations
  * - Returns mutation objects with isPending, mutate, etc.
- * - Implements optimistic updates for status changes (no waiting for server)
+ * - Implements optimistic updates for status/progress changes (no waiting for server)
  * 
  * DEPENDENCIES (imports from):
  * - @/utils/trpc: TRPC client instance
@@ -181,14 +191,22 @@ export function useTaskActions(
  * RELATED FILES:
  * - server/routers/task.ts: Defines the mutation endpoints
  * - hooks/useTaskTimer.ts: Uses updateSeconds indirectly
+ * - app/components/tasks/ProgressBoxes.tsx: Uses updateProgress for instant feedback
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Optimistic updates: UI updates instantly before server confirms
+ * - Deferred refetch: Background sync happens after UI update (100ms delay)
+ * - Smart invalidation: Marks queries stale without forcing immediate refetch
+ * - Rollback on error: Automatically reverts optimistic updates if mutation fails
+ * - Local state in components: Double-layer instant feedback (component + hook)
  * 
  * NOTES:
  * - refetch parameter is typically router.refresh() for server component revalidation
- * - updateStatus uses optimistic updates for instant UI feedback (no 5-10s delay)
- * - On mutation, immediately updates local cache, then confirms with server
- * - If server returns error, rolls back to previous state
- * - onSettled ensures eventual consistency with server
- * - This eliminates the 5-10 second delay users were experiencing
+ * - updateStatus/updateProgress use optimistic updates for instant UI feedback
+ * - On mutation, immediately updates local cache, then confirms with server in background
+ * - If server returns error, automatically rolls back to previous state
+ * - onSettled uses refetchType: 'none' to avoid blocking UI updates
+ * - This eliminates ALL perceived lag when clicking progress boxes
  * - Type casting (as Status) ensures TypeScript compatibility
  * - Date conversion (new Date(variables.date)) fixes string to Date type mismatch
  */

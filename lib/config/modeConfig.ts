@@ -156,11 +156,10 @@ export const MODE_CONFIG: Record<ModeType, ModeConfig> = {
         description: 'Work-related goals, deliverables, or KPIs',
         placeholders: {
             title: 'Prepare client presentation',
-            estimate: 'e.g., 4',
+            subtasks: 'e.g., Research, Draft slides, Review with team',
             notes: 'Additional context or requirements...',
         },
         labels: {
-            estimate: 'Effort (hours)',
             dateField: 'Deadline',
         },
         buttonText: 'Add Work Item',
@@ -171,8 +170,8 @@ export const MODE_CONFIG: Record<ModeType, ModeConfig> = {
             showPriority: true,
             showCategory: true,
             showAmount: false,
-            showEstimate: true,
-            showSubtasks: false,
+            showEstimate: false,
+            showSubtasks: true,
             showNotes: true,
             showOutcome: true,
         },

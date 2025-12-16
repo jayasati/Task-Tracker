@@ -151,7 +151,8 @@ function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
             <StatusBadge
               task={task}
               timerSessions={task.timerSessions || []}
-              todayCompletedSubtasks={localAmount}
+              todayCompletedSubtasks={completedSubtasks.length}
+              totalSubtasks={activeSubtasks.length}
             />
           )}
 
@@ -202,7 +203,8 @@ function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
           <ProgressIndicator
             task={task}
             timerSessions={task.timerSessions || []}
-            todayCompletedSubtasks={localAmount}
+            todayCompletedSubtasks={completedSubtasks.length}
+            totalSubtasks={activeSubtasks.length}
           />
         </div>
       )}
@@ -327,7 +329,7 @@ function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
       </div>
 
       {/* Collapsible subtasks section */}
-      {(task.subtasks?.length ?? 0) > 0 && (
+      {(activeSubtasks.length > 0 || (task.subtasks?.length ?? 0) > 0) && (
         <div className="mt-2 ml-6">
           <button
             type="button"
@@ -335,7 +337,7 @@ function TaskCard({ task, refetch, currentMonth }: TaskCardProps) {
             className="text-xs font-medium text-gray-600 hover:text-gray-900 flex items-center gap-1"
           >
             <span>{isExpanded ? '▼' : '▶'}</span>
-            Subtasks ({completedSubtasks.length}/{task.subtasks?.length || 0})
+            Subtasks ({completedSubtasks.length}/{activeSubtasks.length})
           </button>
 
           {isExpanded && (
