@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Task } from "@/types/task";
 import { get2AMDayKey } from "@/lib/utils/date";
+import { isProfessionalCategory } from "@/lib/utils/filters";
 
 export function useTaskSubtasks(
     task: Task,
@@ -20,29 +21,48 @@ export function useTaskSubtasks(
         if (currentStatus) {
             setLocalCompleted(currentStatus.completedSubtasks);
         } else {
+            // Fresh day - all subtasks are uncompleted
             setLocalCompleted([]);
         }
     }, [currentStatus]);
 
     const completedSubtasks = localCompleted;
 
-    // Rollover Logic
-    const prevStatus = task.statuses
-        .filter(s => new Date(s.date) < new Date(today))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    // Check if this is a professional habit or any habit that should reset daily
+    const shouldResetDaily = isProfessionalCategory(task.category) || 
+                             task.category === 'make_habit' || 
+                             task.category === 'break_habit';
 
-    let rolledOverSubtasks: string[] = [];
-    if (prevStatus) {
-        const prevDaily = (prevStatus.dailySubtasks && prevStatus.dailySubtasks.length > 0)
-            ? prevStatus.dailySubtasks
+    // For daily-reset habits: use global subtasks fresh each day
+    // For task type: use rollover logic
+    let activeSubtasks: string[];
+    
+    if (shouldResetDaily) {
+        // Daily habits: Always use the global subtasks list fresh each day
+        // If there's a frozen dailySubtasks for today, use that (allows adding subtasks during the day)
+        const hasDailySubtasks = currentStatus?.dailySubtasks && currentStatus.dailySubtasks.length > 0;
+        activeSubtasks = hasDailySubtasks
+            ? currentStatus.dailySubtasks
             : (task.subtasks ?? []);
-        rolledOverSubtasks = prevDaily.filter(s => !prevStatus.completedSubtasks.includes(s));
-    }
+    } else {
+        // Task type with rollover: uncompleted subtasks from previous day carry forward
+        const prevStatus = task.statuses
+            .filter(s => new Date(s.date) < new Date(today))
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
-    const hasDailySubtasks = currentStatus?.dailySubtasks && currentStatus.dailySubtasks.length > 0;
-    const activeSubtasks = hasDailySubtasks
-        ? (currentStatus?.dailySubtasks ?? [])
-        : Array.from(new Set([...rolledOverSubtasks, ...(task.subtasks ?? [])]));
+        let rolledOverSubtasks: string[] = [];
+        if (prevStatus) {
+            const prevDaily = (prevStatus.dailySubtasks && prevStatus.dailySubtasks.length > 0)
+                ? prevStatus.dailySubtasks
+                : (task.subtasks ?? []);
+            rolledOverSubtasks = prevDaily.filter(s => !prevStatus.completedSubtasks.includes(s));
+        }
+
+        const hasDailySubtasks = currentStatus?.dailySubtasks && currentStatus.dailySubtasks.length > 0;
+        activeSubtasks = hasDailySubtasks
+            ? (currentStatus?.dailySubtasks ?? [])
+            : Array.from(new Set([...rolledOverSubtasks, ...(task.subtasks ?? [])]));
+    }
 
     const toggleSubtask = (sub: string) => {
         const isCompleted = completedSubtasks.includes(sub);

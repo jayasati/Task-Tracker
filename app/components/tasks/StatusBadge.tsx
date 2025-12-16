@@ -12,11 +12,13 @@ interface StatusBadgeProps {
     task: any;
     timerSessions?: any[];
     todayCompletedSubtasks?: number;
+    totalSubtasks?: number;
 }
 
-export default function StatusBadge({ task, timerSessions = [], todayCompletedSubtasks = 0 }: StatusBadgeProps) {
+export default function StatusBadge({ task, timerSessions = [], todayCompletedSubtasks = 0, totalSubtasks = 0 }: StatusBadgeProps) {
     const evaluation = useMemo(() => {
         const { habitType, requiredMinutes, requiredAmount } = task;
+        const hasSubtasks = totalSubtasks > 0;
 
         // Calculate today's time from timer sessions (2AM to 2AM)
         const { start, end } = get2AMBoundaries(new Date());
@@ -31,20 +33,27 @@ export default function StatusBadge({ task, timerSessions = [], todayCompletedSu
 
         // Calculate status based on habit type
         if (habitType === "time") {
+            // If time habit has subtasks, use subtask completion for status
+            if (hasSubtasks) {
+                return calculateAmountBasedStatus(todayCompletedSubtasks, totalSubtasks);
+            }
             return calculateTimeBasedStatus(todayMinutes, requiredMinutes || 0);
         } else if (habitType === "amount") {
-            return calculateAmountBasedStatus(todayCompletedSubtasks, requiredAmount || 0);
+            // Use subtasks count if available, otherwise requiredAmount
+            const required = hasSubtasks ? totalSubtasks : (requiredAmount || 0);
+            return calculateAmountBasedStatus(todayCompletedSubtasks, required);
         } else if (habitType === "both") {
+            const required = hasSubtasks ? totalSubtasks : (requiredAmount || 0);
             return calculateBothStatus(
                 todayMinutes,
                 requiredMinutes || 0,
                 todayCompletedSubtasks,
-                requiredAmount || 0
+                required
             );
         }
 
         return null;
-    }, [task, timerSessions, todayCompletedSubtasks]);
+    }, [task, timerSessions, todayCompletedSubtasks, totalSubtasks]);
 
     if (!evaluation) return null;
 

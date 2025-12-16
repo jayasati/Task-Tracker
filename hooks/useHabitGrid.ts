@@ -7,9 +7,72 @@ import { nextStatus, statusLabels, statusIcons } from "@/lib/utils/status";
 export function useHabitGrid(task: Task, refetch: () => void, currentMonth: Date) {
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    
+    const utils = trpc.useUtils();
 
     const updateStatus = trpc.task.updateStatus.useMutation({
-        onSuccess: () => refetch(),
+        // Optimistic update for instant feedback in habit grid
+        onMutate: async (variables) => {
+            // Cancel outgoing refetches
+            await utils.task.getTasks.cancel();
+
+            // Snapshot previous value
+            const previousTasks = utils.task.getTasks.getData();
+
+            // Optimistically update cache (simplified for habit grid)
+            if (previousTasks) {
+                utils.task.getTasks.setData(undefined, (old) => {
+                    if (!old) return old;
+                    return old.map(t => {
+                        if (t.id === variables.taskId) {
+                            const statusIndex = t.statuses.findIndex(
+                                s => new Date(s.date).toISOString().split('T')[0] === variables.date
+                            );
+
+                            if (statusIndex >= 0) {
+                                const newStatuses = [...t.statuses];
+                                newStatuses[statusIndex] = {
+                                    ...newStatuses[statusIndex],
+                                    status: variables.status as any,
+                                };
+                                return { ...t, statuses: newStatuses };
+                            } else {
+                                return {
+                                    ...t,
+                                    statuses: [...t.statuses, {
+                                        id: 'temp-' + Date.now(),
+                                        taskId: variables.taskId,
+                                        date: new Date(variables.date + 'T12:00:00'),
+                                        status: variables.status as any,
+                                        completedSubtasks: [],
+                                        dailySubtasks: [],
+                                        progressLevel: 0
+                                    }]
+                                };
+                            }
+                        }
+                        return t;
+                    });
+                });
+            }
+
+            return { previousTasks };
+        },
+        onError: (err, variables, context) => {
+            // Rollback on error
+            if (context?.previousTasks) {
+                utils.task.getTasks.setData(undefined, context.previousTasks);
+            }
+        },
+        onSuccess: () => {
+            // Don't refetch immediately - rely on optimistic update
+        },
+        onSettled: () => {
+            // Invalidate without forcing immediate refetch
+            utils.task.getTasks.invalidate(undefined, { refetchType: 'none' });
+            // Deferred background sync
+            setTimeout(() => refetch(), 100);
+        },
     });
 
     const year = currentMonth.getFullYear();
@@ -135,7 +198,7 @@ export function useHabitGrid(task: Task, refetch: () => void, currentMonth: Date
  * 
  * PURPOSE:
  * Complex hook managing habit grid logic including status tracking, time-based colors,
- * subtask modals, and rollover functionality.
+ * subtask modals, and rollover functionality with instant UI updates.
  * 
  * WHAT IT DOES:
  * - Manages modal state for subtask selection
@@ -143,20 +206,28 @@ export function useHabitGrid(task: Task, refetch: () => void, currentMonth: Date
  * - Creates optimized Maps for status and log lookups (O(1) instead of O(n))
  * - getStatus: Returns status for a specific day
  * - isDayToday: Checks if a day is today
- * - toggle: Handles day box clicks (cycles status or opens subtask modal)
+ * - toggle: Handles day box clicks with instant feedback (cycles status or opens subtask modal)
  * - getTimeColor: Calculates color based on time spent vs estimate
  * - getPrevDayUnfinished: Gets uncompleted subtasks from previous day
  * - getStatusEntry: Returns full status entry for a day
+ * - Implements optimistic updates for instant UI feedback when clicking habit grid boxes
  * 
  * DEPENDENCIES (imports from):
  * - react: useState, useMemo, useCallback for optimization
- * - @/utils/trpc: TRPC client for updateStatus mutation
+ * - @/utils/trpc: TRPC client for updateStatus mutation with optimistic updates
  * - @/types/task: Task type definition
  * - @/lib/utils/date: Date formatting utilities
  * - @/lib/utils/status: Status cycle and labels
  * 
  * DEPENDENTS (files that import this):
  * - app/components/HabitGrid.tsx: Main consumer of this hook
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Optimistic updates: Habit grid boxes update instantly before server confirms
+ * - Deferred refetch: Background sync happens 100ms after UI update
+ * - Smart invalidation: Marks queries stale without blocking UI
+ * - useMemo: statusMap and logsMap prevent unnecessary recalculations
+ * - useCallback: All functions are memoized to prevent re-renders
  * 
  * NOTES:
  * - Heavily optimized with useMemo and useCallback to prevent re-renders
@@ -165,4 +236,6 @@ export function useHabitGrid(task: Task, refetch: () => void, currentMonth: Date
  * - For task type with subtasks, clicking opens modal instead of toggling
  * - For time type tasks, boxes are non-interactive (color shows progress)
  * - Rollover logic: uncompleted subtasks from previous day carry forward
+ * - Optimistic updates eliminate all perceived lag when clicking habit boxes
+ * - If mutation fails, automatically rolls back to previous state
  */
