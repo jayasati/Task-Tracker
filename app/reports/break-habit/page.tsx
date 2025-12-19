@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { CategoryHabitList } from '@/app/components/reports/CategoryHabitList';
 import { auth } from '@clerk/nextjs/server';
 
+export const dynamic = 'force-dynamic';
+
 export default async function BreakHabitReportsPage() {
     const { userId } = await auth();
     if (!userId) {

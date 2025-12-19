@@ -1,6 +1,8 @@
 "use client";
 import { useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+
+export const dynamic = 'force-dynamic';
 import { trpc } from "@/utils/trpc";
 import AddTask from "./components/AddTask";
 import TaskCardSkeleton from "./components/TaskCardSkeleton";

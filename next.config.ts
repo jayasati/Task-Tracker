@@ -2,7 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Optimize output for production
-  output: 'standalone',
 
   // Optimize images
   images: {

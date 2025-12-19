@@ -1,5 +1,7 @@
 import { HabitAnalyticsView } from '@/app/components/reports/HabitAnalyticsView';
 
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
     params: Promise<{
         habitId: string;
